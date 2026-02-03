@@ -1,0 +1,20 @@
+{
+  "tasks": {
+    "enabled": true,
+    "reminder_check_interval": 60,
+    "data_file": "D:/Gemini CLI/tasks.json",
+    "daily_digest_hour": 7,
+    "daily_digest_minute": 0,
+    "hours_before_deadline": 1
+  },
+  "brain": {
+    "enabled": true,
+    "check_interval_hours": 2,
+    "quiet_hours_start": 23.5,
+    "quiet_hours_end": 7,
+    "min_gap_between_messages_hours": 2,
+    "conversation_file": "D:/Gemini CLI/conversation.txt",
+    "persona_update_day": 6,
+    "persona_update_hour": 21
+  }
+}
