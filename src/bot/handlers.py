@@ -583,3 +583,109 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 logger.debug(f"Cleaned up temp image: {image_path}")
         except Exception as e:
             logger.warning(f"Could not clean up temp image: {e}")
+
+
+@authorized_only
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle document/file uploads.
+    
+    Downloads the file and saves it to a user-specified folder within the allowed directory.
+    Usage: Send a file with caption like "save to Work/Reports" or just send without caption
+    to save to the root allowed directory.
+    """
+    user_info = get_user_info(update)
+    caption = update.message.caption or ""
+    document = update.message.document
+    
+    if not document:
+        await update.message.reply_text("❌ No document found in message.")
+        return
+    
+    original_filename = document.file_name or f"file_{uuid.uuid4().hex[:8]}"
+    logger.info(f"Processing document from {user_info['id']}: {original_filename}")
+    
+    # Parse target folder from caption
+    # Formats: "save to folder/subfolder", "folder/path", or empty for root
+    target_subfolder = ""
+    if caption:
+        # Check for "save to X" pattern
+        caption_lower = caption.lower()
+        if "save to " in caption_lower:
+            target_subfolder = caption.split("save to ", 1)[-1].strip()
+        elif "save in " in caption_lower:
+            target_subfolder = caption.split("save in ", 1)[-1].strip()
+        else:
+            # Treat entire caption as folder path if it looks like a path
+            if "/" in caption or "\\" in caption or not " " in caption:
+                target_subfolder = caption.strip()
+    
+    # Sanitize the subfolder path (prevent directory traversal)
+    target_subfolder = target_subfolder.replace("\\", "/")
+    target_subfolder = "/".join(
+        part for part in target_subfolder.split("/") 
+        if part and part != ".." and part != "."
+    )
+    
+    # Build the full target path
+    base_dir = Path(gemini.ALLOWED_DIR)
+    if target_subfolder:
+        target_dir = base_dir / target_subfolder
+    else:
+        target_dir = base_dir
+    
+    # Create directory if it doesn't exist
+    target_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Full file path
+    file_path = target_dir / original_filename
+    
+    # Handle filename conflicts
+    if file_path.exists():
+        stem = file_path.stem
+        suffix = file_path.suffix
+        counter = 1
+        while file_path.exists():
+            file_path = target_dir / f"{stem}_{counter}{suffix}"
+            counter += 1
+    
+    # Send processing message
+    processing_msg = await update.message.reply_text(
+        f"📥 Downloading `{original_filename}`...",
+        parse_mode='Markdown'
+    )
+    
+    try:
+        # Download the file
+        file = await context.bot.get_file(document.file_id)
+        await file.download_to_drive(str(file_path))
+        
+        logger.info(f"Document saved to: {file_path}")
+        
+        # Success message
+        relative_path = file_path.relative_to(base_dir)
+        await processing_msg.edit_text(
+            f"✅ *File saved successfully!*\n\n"
+            f"📄 `{original_filename}`\n"
+            f"📁 `{gemini.ALLOWED_DIR}\\{relative_path}`\n"
+            f"💾 Size: {document.file_size:,} bytes",
+            parse_mode='Markdown'
+        )
+        
+        # Log to conversation history
+        conversation_history.add_message(
+            'USER', 
+            f"[Uploaded file: {original_filename} to {target_dir}]", 
+            user_info['id']
+        )
+        conversation_history.add_message(
+            'ASSISTANT', 
+            f"File saved to {file_path}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error saving document: {e}")
+        await processing_msg.edit_text(
+            f"❌ Error saving file:\n\n`{str(e)}`",
+            parse_mode='Markdown'
+        )
+

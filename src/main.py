@@ -27,6 +27,7 @@ from src.bot.handlers import (
     summarize_command,
     handle_message,
     handle_photo,
+    handle_document,
     error_handler,
     set_tasks_automation
 )
@@ -105,6 +106,11 @@ def main() -> None:
     # Add photo handler
     application.add_handler(
         MessageHandler(filters.PHOTO, handle_photo)
+    )
+    
+    # Add document/file handler
+    application.add_handler(
+        MessageHandler(filters.Document.ALL, handle_document)
     )
     
     # Add error handler
