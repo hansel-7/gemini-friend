@@ -63,7 +63,8 @@
 Edit `config/gemini_settings.json` to configure MCP servers:
 - **filesystem** - Read/write files in your chosen directory
 - **playwright** - Control web browsers
-- **gdrive** - Access Google Drive files (requires additional setup)
+
+> **Note:** Google Workspace (Calendar, Gmail, Drive) integration is built into Gemini CLI - no additional MCP server needed.
 
 ## Usage
 
