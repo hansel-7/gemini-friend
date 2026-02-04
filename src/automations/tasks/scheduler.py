@@ -7,6 +7,7 @@ Reminder Strategy:
 2. Individual reminder 1 hour before each task's deadline
 """
 
+import json
 from datetime import datetime, timedelta, time
 from typing import Callable, Optional, Awaitable, List
 import asyncio
@@ -17,6 +18,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.utils.logger import logger
 from src.automations.tasks.manager import TaskManager, Task
+
+# File to persist scheduler state
+SCHEDULER_STATE_FILE = Path(__file__).parent / "scheduler_state.json"
 
 
 class TaskScheduler:
@@ -58,7 +62,7 @@ class TaskScheduler:
         
         self._running = False
         self._task: Optional[asyncio.Task] = None
-        self._last_daily_digest_date: Optional[datetime] = None
+        self._last_daily_digest_date: Optional[datetime] = self._load_last_digest_date()
     
     async def start(self) -> None:
         """Start the reminder scheduler."""
@@ -104,16 +108,12 @@ class TaskScheduler:
             return
         
         now = datetime.now()
-        digest_time = time(self.daily_digest_hour, self.daily_digest_minute)
-        
-        # Check if we're within the check interval of the digest time
-        current_time = now.time()
         
         # Already sent today?
         if self._last_daily_digest_date and self._last_daily_digest_date.date() == now.date():
             return
         
-        # Is it time? (within check_interval seconds of the target time)
+        # Build target time for today
         target_datetime = now.replace(
             hour=self.daily_digest_hour,
             minute=self.daily_digest_minute,
@@ -121,20 +121,37 @@ class TaskScheduler:
             microsecond=0
         )
         
-        # Check if we're past the digest time but haven't sent yet today
-        if now >= target_datetime:
-            pending_tasks = self.task_manager.get_pending_tasks()
-            
-            if pending_tasks:
-                try:
-                    await self.on_daily_digest(pending_tasks)
-                    self._last_daily_digest_date = now
-                    logger.info(f"Sent daily digest with {len(pending_tasks)} tasks")
-                except Exception as e:
-                    logger.error(f"Error sending daily digest: {e}")
-            else:
-                # No tasks, but mark as sent so we don't keep checking
+        # Only send if we're within a 10-minute window AFTER the target time
+        # This prevents blasting if bot restarts hours after the target time
+        time_since_target = (now - target_datetime).total_seconds()
+        grace_period_seconds = 10 * 60  # 10 minutes
+        
+        if time_since_target < 0:
+            # Before target time, not yet
+            return
+        
+        if time_since_target > grace_period_seconds:
+            # Past the grace window, skip for today (mark as sent)
+            logger.debug(f"Daily digest time passed ({time_since_target/60:.0f}m ago), skipping until tomorrow")
+            self._last_daily_digest_date = now
+            self._save_last_digest_date(now)
+            return
+        
+        # Within the window, send the digest
+        pending_tasks = self.task_manager.get_pending_tasks()
+        
+        if pending_tasks:
+            try:
+                await self.on_daily_digest(pending_tasks)
                 self._last_daily_digest_date = now
+                self._save_last_digest_date(now)
+                logger.info(f"Sent daily digest with {len(pending_tasks)} tasks")
+            except Exception as e:
+                logger.error(f"Error sending daily digest: {e}")
+        else:
+            # No tasks, but mark as sent so we don't keep checking
+            self._last_daily_digest_date = now
+            self._save_last_digest_date(now)
     
     async def _check_deadline_reminders(self) -> None:
         """Check for tasks approaching their deadline."""
@@ -169,3 +186,34 @@ class TaskScheduler:
     def is_running(self) -> bool:
         """Check if scheduler is running."""
         return self._running
+    
+    def _load_last_digest_date(self) -> Optional[datetime]:
+        """Load the last digest date from persistent storage."""
+        try:
+            if SCHEDULER_STATE_FILE.exists():
+                with open(SCHEDULER_STATE_FILE, 'r') as f:
+                    state = json.load(f)
+                    if 'last_daily_digest_date' in state and state['last_daily_digest_date']:
+                        loaded_date = datetime.fromisoformat(state['last_daily_digest_date'])
+                        logger.info(f"Loaded last digest date: {loaded_date}")
+                        return loaded_date
+        except Exception as e:
+            logger.warning(f"Could not load scheduler state: {e}")
+        return None
+    
+    def _save_last_digest_date(self, dt: datetime) -> None:
+        """Save the last digest date to persistent storage."""
+        try:
+            state = {}
+            if SCHEDULER_STATE_FILE.exists():
+                with open(SCHEDULER_STATE_FILE, 'r') as f:
+                    state = json.load(f)
+            
+            state['last_daily_digest_date'] = dt.isoformat()
+            
+            with open(SCHEDULER_STATE_FILE, 'w') as f:
+                json.dump(state, f, indent=2)
+            
+            logger.debug(f"Saved last digest date: {dt}")
+        except Exception as e:
+            logger.error(f"Could not save scheduler state: {e}")

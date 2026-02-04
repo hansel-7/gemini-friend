@@ -18,6 +18,7 @@
 | 📅 **Calendar & Email** | Google Calendar and Gmail integration |
 | ✅ **Task Management** | Checklist with automatic reminders |
 | 🧠 **AI Brain** | Proactive engagement and idea generation |
+| 📰 **News Digest** | Daily gaming industry news summaries |
 | 🔌 **Modular Automations** | Easy to add/remove features |
 
 ## 🚀 Quick Start
@@ -84,6 +85,9 @@ Edit `config/gemini_settings.json` to configure MCP servers:
 - `/deltask <id>` - Delete a task
 - `/cleartasks` - Remove completed tasks
 
+### News Commands
+- `/news` - Manually trigger the daily digest
+
 ### Context Commands
 - `/context` - Check context window usage
 - `/summarize` - Summarize conversation history
@@ -99,12 +103,19 @@ Automations are modular features that can be enabled/disabled in `config/automat
   "tasks": {
     "enabled": true,
     "reminder_check_interval": 60
+  },
+  "news": {
+    "enabled": true,
+    "digest_hour": 7,
+    "digest_minute": 0
   }
 }
 ```
 
 ### Available Automations
 - **tasks** - Task/checklist management with reminders
+- **news** - Daily gaming news digest with AI summarization
+- **brain** - Proactive AI engagement
 
 ### Adding New Automations
 1. Create folder: `src/automations/my_feature/`
@@ -144,6 +155,10 @@ personal_assistant/
     │   │   ├── manager.py  # Task CRUD
     │   │   ├── scheduler.py # Reminders
     │   │   └── handlers.py # Commands
+    │   ├── news/           # News scraper & summarizer
+    │   │   ├── scraper.py
+    │   │   ├── scheduler.py
+    │   │   └── summarizer.py
     │   └── brain/          # AI Brain (proactive engagement)
     │       ├── thinker.py  # Thought generation
     │       └── scheduler.py # Scheduling logic

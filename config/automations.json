@@ -16,5 +16,12 @@
     "conversation_file": "D:/Gemini CLI/conversation.txt",
     "persona_update_day": 6,
     "persona_update_hour": 21
+  },
+  "news": {
+    "enabled": true,
+    "digest_hour": 7,
+    "digest_minute": 0,
+    "check_interval": 60,
+    "send_on_startup": false
   }
 }

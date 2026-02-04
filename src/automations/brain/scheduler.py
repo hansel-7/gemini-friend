@@ -104,6 +104,11 @@ class BrainScheduler:
     
     async def _think_loop(self) -> None:
         """Main loop for periodic thinking."""
+        # Wait for the full interval before first thinking cycle
+        # This prevents immediate message blast on bot restart
+        logger.debug(f"Brain: Waiting {self.check_interval_seconds/3600:.1f}h before first thinking cycle")
+        await asyncio.sleep(self.check_interval_seconds)
+        
         while self._running:
             try:
                 await self._execute_think_cycle()

@@ -38,6 +38,9 @@ Desktop.ini
 data/
 *.json.bak
 config/gemini_settings.json
+**/scheduler_state.json
+**/seen_articles.json
+news_output.json
 
 # Credentials (never commit these!)
 *.keys.json
