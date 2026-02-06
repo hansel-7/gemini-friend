@@ -507,16 +507,32 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle photo messages.
     
-    Downloads the image to the allowed directory and asks Gemini CLI
-    to analyze it using the filesystem MCP server.
+    Downloads the image to the allowed directory. If caption contains 'save to X',
+    saves to that subfolder. Otherwise, analyzes with Gemini CLI.
     """
     user_info = get_user_info(update)
-    caption = update.message.caption or "What is in this image?"
+    caption = update.message.caption or ""
     
     logger.info(f"Processing photo from {user_info['id']}: {caption[:50]}...")
     
-    # Save to conversation history
-    conversation_history.add_message('USER', f"[Photo] {caption}", user_info['id'])
+    # Check if user wants to save to a specific folder
+    save_mode = False
+    target_subfolder = ""
+    caption_lower = caption.lower()
+    
+    if "save to " in caption_lower or "save in " in caption_lower:
+        save_mode = True
+        if "save to " in caption_lower:
+            target_subfolder = caption.split("save to ", 1)[-1].strip()
+        else:
+            target_subfolder = caption.split("save in ", 1)[-1].strip()
+        
+        # Sanitize the subfolder path (prevent directory traversal)
+        target_subfolder = target_subfolder.replace("\\", "/")
+        target_subfolder = "/".join(
+            part for part in target_subfolder.split("/") 
+            if part and part != ".." and part != "."
+        )
     
     # Send typing indicator
     await context.bot.send_chat_action(
@@ -524,65 +540,104 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         action='typing'
     )
     
-    # Send processing message
-    processing_msg = await update.message.reply_text(
-        "🖼️ Processing your image with Gemini..."
-    )
+    # Determine target directory
+    base_dir = Path(gemini.ALLOWED_DIR)
+    if save_mode and target_subfolder:
+        target_dir = base_dir / target_subfolder
+        target_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        target_dir = base_dir
     
     # Generate unique filename
     image_id = uuid.uuid4().hex[:8]
     image_filename = f"telegram_image_{image_id}.jpg"
-    image_path = Path(gemini.ALLOWED_DIR) / image_filename
+    image_path = target_dir / image_filename
+    
+    # Send processing message
+    processing_msg = await update.message.reply_text(
+        "🖼️ Downloading your image..."
+    )
     
     try:
         # Get the largest photo (best quality)
         photo = update.message.photo[-1]
         
-        # Download the photo
+        # Download the photo directly to target location
         file = await context.bot.get_file(photo.file_id)
         await file.download_to_drive(str(image_path))
         
         logger.info(f"Image downloaded to: {image_path}")
         
-        # Build prompt for Gemini CLI to analyze the image via filesystem MCP
-        image_prompt = (
-            f"I've sent you an image file. Please read and analyze the image at: "
-            f"'{image_path}'\\n\\n"
-            f"User's question about the image: {caption}\\n\\n"
-            f"First read the image file, then provide a detailed response to the user's question."
-        )
-        
-        # Get full conversation context
-        context_history = conversation_history.get_context_for_gemini()
-        
-        # Use Gemini CLI with MCP to analyze (filesystem server can read the image)
-        response = await gemini.send_message(image_prompt, context=context_history, use_mcp=True)
-        
-        # Save assistant response
-        conversation_history.add_message('ASSISTANT', response)
-        
-        # Delete processing message
-        await processing_msg.delete()
-        
-        # Send response
-        await send_long_message(update, response)
-        
-        logger.info(f"Successfully processed photo for {user_info['id']}")
+        if save_mode:
+            # Just save mode - don't analyze with Gemini
+            relative_path = image_path.relative_to(base_dir)
+            await processing_msg.edit_text(
+                f"✅ *Image saved successfully!*\n\n"
+                f"📄 `{image_filename}`\n"
+                f"📁 `{gemini.ALLOWED_DIR}\\{relative_path}`",
+                parse_mode='Markdown'
+            )
+            
+            # Log to conversation history
+            conversation_history.add_message(
+                'USER', 
+                f"[Saved photo: {image_filename} to {target_dir}]", 
+                user_info['id']
+            )
+            conversation_history.add_message(
+                'ASSISTANT', 
+                f"Image saved to {image_path}"
+            )
+            
+            logger.info(f"Saved photo for {user_info['id']} to {image_path}")
+            
+        else:
+            # Analyze mode - keep image in root and ask Gemini to analyze
+            conversation_history.add_message('USER', f"[Photo] {caption or 'What is in this image?'}", user_info['id'])
+            
+            await processing_msg.edit_text("🖼️ Analyzing your image with Gemini...")
+            
+            # Build prompt for Gemini CLI to analyze the image via filesystem MCP
+            analysis_caption = caption if caption else "What is in this image?"
+            image_prompt = (
+                f"I've sent you an image file. Please read and analyze the image at: "
+                f"'{image_path}'\n\n"
+                f"User's question about the image: {analysis_caption}\n\n"
+                f"First read the image file, then provide a detailed response to the user's question."
+            )
+            
+            # Get full conversation context
+            context_history = conversation_history.get_context_for_gemini()
+            
+            # Use Gemini CLI with MCP to analyze (filesystem server can read the image)
+            response = await gemini.send_message(image_prompt, context=context_history, use_mcp=True)
+            
+            # Save assistant response
+            conversation_history.add_message('ASSISTANT', response)
+            
+            # Delete processing message
+            await processing_msg.delete()
+            
+            # Send response
+            await send_long_message(update, response)
+            
+            logger.info(f"Successfully processed photo for {user_info['id']}")
+            
+            # Clean up the image file after analysis
+            try:
+                if image_path.exists():
+                    image_path.unlink()
+                    logger.debug(f"Cleaned up temp image: {image_path}")
+            except Exception as e:
+                logger.warning(f"Could not clean up temp image: {e}")
         
     except Exception as e:
         logger.error(f"Error processing photo: {e}")
         await processing_msg.edit_text(
-            f"❌ Error processing image:\\n\\n`{str(e)}`",
+            f"❌ Error processing image:\n\n`{str(e)}`",
             parse_mode='Markdown'
         )
-    finally:
-        # Clean up the image file
-        try:
-            if image_path.exists():
-                image_path.unlink()
-                logger.debug(f"Cleaned up temp image: {image_path}")
-        except Exception as e:
-            logger.warning(f"Could not clean up temp image: {e}")
+
 
 
 @authorized_only

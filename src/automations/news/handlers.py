@@ -39,6 +39,7 @@ class NewsAutomation(BaseAutomation):
             digest_minute=config.get('digest_minute', 0),
             check_interval=config.get('check_interval', 60),
             send_on_startup=config.get('send_on_startup', False),
+            max_articles_per_source=config.get('max_articles_per_source', 50),
         )
     
     def register_handlers(self) -> None:

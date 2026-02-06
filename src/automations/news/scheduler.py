@@ -26,6 +26,7 @@ class NewsScheduler:
         digest_minute: int = 0,
         check_interval: int = 60,
         send_on_startup: bool = False,  # For testing: send immediately on startup
+        max_articles_per_source: int = 50,  # Limit articles per RSS source
     ):
         """Initialize the news scheduler.
         
@@ -43,6 +44,7 @@ class NewsScheduler:
         self.digest_minute = digest_minute
         self.check_interval = check_interval
         self.send_on_startup = send_on_startup
+        self.max_articles_per_source = max_articles_per_source
         
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -140,7 +142,7 @@ class NewsScheduler:
         """Fetch news and send the digest."""
         logger.info("News: Preparing daily digest...")
         
-        scraper = NewsScraper()
+        scraper = NewsScraper(max_articles_per_source=self.max_articles_per_source)
         try:
             # Fetch only NEW articles (not seen before)
             articles = await scraper.fetch_new_for_digest()
