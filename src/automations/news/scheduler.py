@@ -123,11 +123,18 @@ class NewsScheduler:
         if self._last_digest_date and self._last_digest_date.date() == now.date():
             return
         
-        # Check if it's the right time
-        if now.hour == self.digest_hour and now.minute >= self.digest_minute:
-            # Within a 10-minute window
-            if now.minute <= self.digest_minute + 10:
-                await self._send_digest()
+        # Check if it's past the scheduled time - if so, send now
+        # This handles cases where the laptop was asleep during scheduled time
+        target_datetime = now.replace(
+            hour=self.digest_hour,
+            minute=self.digest_minute,
+            second=0,
+            microsecond=0
+        )
+        
+        if now >= target_datetime:
+            # We're past the scheduled time and haven't sent today, send now
+            await self._send_digest()
     
     async def _send_digest(self) -> None:
         """Fetch news and send the digest."""

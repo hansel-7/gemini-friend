@@ -121,23 +121,16 @@ class TaskScheduler:
             microsecond=0
         )
         
-        # Only send if we're within a 10-minute window AFTER the target time
-        # This prevents blasting if bot restarts hours after the target time
+        # Send digest if we're past the target time and haven't sent today
+        # This handles cases where the laptop was asleep during scheduled time
         time_since_target = (now - target_datetime).total_seconds()
-        grace_period_seconds = 10 * 60  # 10 minutes
         
         if time_since_target < 0:
             # Before target time, not yet
             return
         
-        if time_since_target > grace_period_seconds:
-            # Past the grace window, skip for today (mark as sent)
-            logger.debug(f"Daily digest time passed ({time_since_target/60:.0f}m ago), skipping until tomorrow")
-            self._last_daily_digest_date = now
-            self._save_last_digest_date(now)
-            return
-        
-        # Within the window, send the digest
+        # If we're past the target time and haven't sent today, send now
+        # (This handles cases where the laptop was asleep during scheduled time)
         pending_tasks = self.task_manager.get_pending_tasks()
         
         if pending_tasks:
