@@ -22,10 +22,10 @@ async def summarize_articles(articles: List[NewsArticle]) -> str:
     # Use GeminiCLI wrapper
     gemini = GeminiCLI()
     
-    # Build the prompt with article data
-    # Format: **Title** (Source)\nSummary...
+    # Build the prompt with article data including links
+    # Format: **Title** (Source) - Link\nSummary...
     article_text = "\n\n".join([
-        f"**{a.title}** ({a.source})\n{a.summary or 'No summary available.'}"
+        f"**{a.title}** ({a.source})\nLink: {a.link}\n{a.summary or 'No summary available.'}"
         for a in articles[:50]  # Limit to avoid token limits
     ])
     
@@ -41,21 +41,22 @@ Format your response as a clean Markdown list designed for Telegram.
 Use this EXACT format:
 
 **TOP STORIES**
-• **Headline 1**: Brief summary (1-2 sentences).
-• **Headline 2**: Brief summary.
+• **Headline 1**: Brief summary (1-2 sentences). [Read more](actual_url)
+• **Headline 2**: Brief summary. [Read more](actual_url)
 
 **BUSINESS & FUNDING**
-• **Company**: Details of deal/funding ($Amount).
+• **Company**: Details of deal/funding ($Amount). [Read more](actual_url)
 
 **MARKET TRENDS**
-• Trend or data point.
+• Trend or data point. [Read more](actual_url)
 
 **QUICK HITS**
-• Brief item.
+• Brief item. [Read more](actual_url)
 
 **Rules:**
 - Use "• " (bullet point + space) for every item.
 - **Bold** the company name or main subject at the start of each bullet.
+- ALWAYS end each bullet point with [Read more](URL) using the actual article URL provided.
 - Leave an empty line between sections.
 - Keep it concise and scannable. Avoid long paragraphs.
 
@@ -70,8 +71,8 @@ ARTICLES:
         return response
     except Exception as e:
         logger.error(f"Gemini summarization error: {e}")
-        # Fallback: just list the top headlines
+        # Fallback: just list the top headlines with links
         fallback = "⚠️ *Could not generate AI summary. Top headlines:*\n\n"
         for a in articles[:10]:
-            fallback += f"• **{a.title}** ({a.source})\n"
+            fallback += f"• **{a.title}** ({a.source}) [Read more]({a.link})\n"
         return fallback
