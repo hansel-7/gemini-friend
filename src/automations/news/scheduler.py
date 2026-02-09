@@ -145,7 +145,8 @@ class NewsScheduler:
         scraper = NewsScraper(max_articles_per_source=self.max_articles_per_source)
         try:
             # Fetch only NEW articles (not seen before)
-            articles = await scraper.fetch_new_for_digest()
+            # Don't mark as seen yet - wait until we successfully send the message
+            articles = await scraper.fetch_new_for_digest(mark_seen=False)
             
             if not articles:
                 # No new articles
@@ -167,6 +168,9 @@ class NewsScheduler:
                 )
                 await self.send_message(message)
                 logger.info(f"News: Sent digest with {len(articles)} articles")
+                
+                # Now that we've sent the message, mark articles as seen
+                scraper.mark_articles_as_seen(articles)
             
             # Update state
             self._last_digest_date = datetime.now()

@@ -148,22 +148,27 @@ class NewsScraper:
         
         return articles
     
-    async def fetch_new_for_digest(self) -> List[NewsArticle]:
-        """Fetch only new articles for daily digest, then mark them as seen.
+    async def fetch_new_for_digest(self, mark_seen: bool = True) -> List[NewsArticle]:
+        """Fetch only new articles for daily digest.
         
-        This is the main method to use for daily digests - it:
-        1. Fetches all articles
-        2. Filters out previously sent ones
-        3. Marks the new ones as seen for next time
+        Args:
+            mark_seen: If True, mark fetched articles as seen immediately.
+                      If False, caller must manually call mark_articles_as_seen() later.
         """
         articles = await self.fetch_all(filter_seen=True)
         
         # Mark these articles as seen so they won't appear in tomorrow's digest
-        if articles and self.seen_tracker:
+        if mark_seen and articles and self.seen_tracker:
             self.seen_tracker.mark_seen([a.link for a in articles])
             print(f"Marked {len(articles)} articles as seen")
         
         return articles
+
+    def mark_articles_as_seen(self, articles: List[NewsArticle]) -> None:
+        """Manually mark articles as seen."""
+        if self.seen_tracker and articles:
+            self.seen_tracker.mark_seen([a.link for a in articles])
+            print(f"Marked {len(articles)} articles as seen")
     
     async def _fetch_rss(self, source: str, url: str) -> List[NewsArticle]:
         """Fetch articles from an RSS feed."""
