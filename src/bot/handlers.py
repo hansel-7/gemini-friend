@@ -449,6 +449,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
 
+def _markdown_to_html(text: str) -> str:
+    """Convert standard Markdown to Telegram HTML.
+    
+    Converts common Markdown syntax to HTML for reliable Telegram rendering.
+    """
+    import re
+    
+    # Escape HTML special chars first (except for our conversions)
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    
+    # Convert **bold** to <b>bold</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    
+    # Convert *italic* to <i>italic</i> (but not if it's a bullet point at start of line)
+    text = re.sub(r'(?<!^)(?<!\n)\*(.+?)\*', r'<i>\1</i>', text)
+    
+    # Convert `code` to <code>code</code>
+    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+    
+    # Convert [text](url) to <a href="url">text</a>
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+    
+    return text
+
+
 async def send_long_message(update: Update, text: str, max_length: int = 4000) -> None:
     """Send a long message, splitting if necessary.
     
@@ -464,32 +491,44 @@ async def send_long_message(update: Update, text: str, max_length: int = 4000) -
         await update.message.reply_text("(Empty response from Gemini)")
         return
     
+    # Convert standard Markdown to Telegram HTML
+    html_text = _markdown_to_html(text)
+    
     # If message is short enough, send directly
-    if len(text) <= max_length:
-        await update.message.reply_text(text)
+    if len(html_text) <= max_length:
+        try:
+            await update.message.reply_text(html_text, parse_mode='HTML')
+        except Exception:
+            # Fallback to plain text if HTML is malformed
+            await update.message.reply_text(text)
         return
     
     # Split into chunks
     chunks = []
-    while text:
-        if len(text) <= max_length:
-            chunks.append(text)
+    remaining = html_text
+    while remaining:
+        if len(remaining) <= max_length:
+            chunks.append(remaining)
             break
         
         # Find a good split point (prefer newline, then space)
-        split_point = text.rfind('\n', 0, max_length)
+        split_point = remaining.rfind('\n', 0, max_length)
         if split_point == -1:
-            split_point = text.rfind(' ', 0, max_length)
+            split_point = remaining.rfind(' ', 0, max_length)
         if split_point == -1:
             split_point = max_length
         
-        chunks.append(text[:split_point])
-        text = text[split_point:].lstrip()
+        chunks.append(remaining[:split_point])
+        remaining = remaining[split_point:].lstrip()
     
     # Send each chunk
     for i, chunk in enumerate(chunks, 1):
         prefix = f"📄 Part {i}/{len(chunks)}:\n\n" if len(chunks) > 1 else ""
-        await update.message.reply_text(prefix + chunk)
+        try:
+            await update.message.reply_text(prefix + chunk, parse_mode='HTML')
+        except Exception:
+            # Fallback to plain text if HTML is malformed
+            await update.message.reply_text(prefix + chunk)
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
