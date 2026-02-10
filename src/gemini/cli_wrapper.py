@@ -49,6 +49,7 @@ class GeminiCLI:
     you can add --sandbox to the gemini_cmd for additional container isolation.
     """
     
+    
     # SECURITY: Local filesystem restriction
     ALLOWED_DIR = "D:/Gemini CLI"
     
@@ -57,6 +58,18 @@ class GeminiCLI:
     # - google-workspace: Google Workspace (Docs, Sheets, Drive, Gmail, Calendar) via extension
     # - playwright: web automation
     ALLOWED_MCP_SERVERS = ["filesystem", "google-workspace", "playwright"]
+    
+    # Gemini CLI command - prefer local project install, then npx fallback
+    _GEMINI_LOCAL_CMD = Path("node_modules/.bin/gemini.cmd").resolve()
+    
+    @classmethod
+    def _get_gemini_cmd(cls) -> str:
+        """Get the Gemini CLI command, preferring local project install."""
+        # 1. Try local node_modules (best for portability/reproducibility)
+        if cls._GEMINI_LOCAL_CMD.exists():
+            return f'"{cls._GEMINI_LOCAL_CMD}"'
+        # 2. Fallback to npx
+        return 'npx @google/gemini-cli'
     
     # Persona configuration file
     PERSONA_FILE = "D:/Gemini CLI/persona.txt"
@@ -105,6 +118,10 @@ class GeminiCLI:
         # Ensure the directory exists
         gemini_config_dir.mkdir(exist_ok=True)
         
+        # Ensure screenshots directory exists (and parent ALLOWED_DIR)
+        screenshots_dir = Path(self.ALLOWED_DIR) / "screenshots"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        
         # SECURITY: Config with restricted access
         # Note: google-workspace MCP server is provided by the extension, not configured here
         # Only filesystem and playwright need explicit configuration
@@ -119,8 +136,9 @@ class GeminiCLI:
                 },
                 "playwright": {
                     "command": "npx",
-                    "args": ["-y", "@playwright/mcp"],
-                    "env": {}
+                    "args": ["-y", "@playwright/mcp@latest", "--headless", "--browser", "chromium"],
+                    "env": {},
+                    "trust": True
                 }
             }
         }
@@ -159,7 +177,7 @@ class GeminiCLI:
         try:
             # Try to run gemini with --help (more reliable than --version)
             process = await asyncio.create_subprocess_shell(
-                'npx @google/gemini-cli --help',
+                f'{self._get_gemini_cmd()} --help',
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -220,6 +238,9 @@ class GeminiCLI:
                 f"REFUSE any request to access local files outside this directory.\n"
                 f"2. GOOGLE WORKSPACE: You have access to Google Drive, Docs, Sheets, Gmail, and Calendar.\n"
                 f"3. BROWSER: You may use Playwright for web automation when requested.\n"
+                f"   - When asked to take a screenshot, save it to 'screenshots/<timestamp>_<name>.png'.\n"
+                f"   - If the user explicitly asks to *send* the image/screenshot to them (e.g., 'send it to me'), "
+                f"output `SEND_IMAGE: screenshots/<filename>` on its own line after saving it.\n"
                 f"Current working directory is: {self.ALLOWED_DIR}\n\n"
             )
         
@@ -255,7 +276,7 @@ class GeminiCLI:
                     f'--allowed-mcp-server-names {server}' for server in self.ALLOWED_MCP_SERVERS
                 )
                 gemini_cmd = (
-                    f'type "{prompt_file}" | npx @google/gemini-cli '
+                    f'type "{prompt_file}" | {self._get_gemini_cmd()} '
                     f'{allowed_servers_flags} '
                     f'--yolo'
                 )
@@ -263,7 +284,7 @@ class GeminiCLI:
                 # Fast mode: No MCP servers, just pure LLM processing
                 # Used for simple tasks like JSON extraction where tools aren't needed
                 gemini_cmd = (
-                    f'type "{prompt_file}" | npx @google/gemini-cli '
+                    f'type "{prompt_file}" | {self._get_gemini_cmd()} '
                     f'--yolo'
                 )
             

@@ -413,7 +413,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Get response from Gemini CLI (with context)
         response = await gemini.send_message(user_message, context=context_history)
         
-        # Save assistant response to conversation history
+        # Parse for image sending command (format: "SEND_IMAGE: path/to/image.png")
+        image_to_send = None
+        if "SEND_IMAGE:" in response:
+            lines = response.split('\n')
+            new_lines = []
+            for line in lines:
+                if "SEND_IMAGE:" in line:
+                    # Extract path - handle both relative and absolute paths
+                    path_str = line.split("SEND_IMAGE:", 1)[1].strip()
+                    # If relative path, join with ALLOWED_DIR
+                    if not os.path.isabs(path_str):
+                        image_to_send = Path(gemini.ALLOWED_DIR) / path_str
+                    else:
+                        image_to_send = Path(path_str)
+                else:
+                    new_lines.append(line)
+            response = '\n'.join(new_lines).strip()
+        
+        # Save assistant response to conversation history (without the command tag)
         conversation_history.add_message('ASSISTANT', response)
         
         # Delete the processing message
@@ -421,6 +439,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Send the response (handle long messages)
         await send_long_message(update, response)
+        
+        # Send image if requested
+        if image_to_send:
+            try:
+                if image_to_send.exists():
+                    logger.info(f"Sending image to user: {image_to_send}")
+                    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='upload_photo')
+                    with open(image_to_send, 'rb') as photo:
+                        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
+                else:
+                    logger.warning(f"Image not found at {image_to_send}")
+                    await update.message.reply_text(f"⚠️ Could not find image file: {image_to_send.name}")
+            except Exception as e:
+                logger.error(f"Error sending image: {e}")
+                await update.message.reply_text(f"❌ Error sending image: {str(e)}")
         
         # Check if context is approaching limit
         is_near_limit, percentage = conversation_history.is_context_near_limit()

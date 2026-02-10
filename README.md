@@ -13,7 +13,7 @@
 | 🤖 **AI-Powered** | Connects to Gemini CLI for intelligent responses |
 | 📷 **Vision** | Analyze images sent via Telegram |
 | 📁 **File Access** | Manages files in designated directories via MCP |
-| 🌐 **Web Browsing** | Controls browsers via Playwright MCP |
+| 🌐 **Web Browsing** | Controls browsers via Playwright MCP (screenshots sent to Telegram on request) |
 | ☁️ **Cloud Storage** | Accesses Google Drive via MCP |
 | 📅 **Calendar & Email** | Google Calendar and Gmail integration |
 | ✅ **Task Management** | Checklist with automatic reminders |
@@ -27,7 +27,7 @@
 
 - Python 3.10+
 - Node.js 20+ (for Gemini CLI)
-- Gemini CLI installed and authenticated
+- Gemini CLI authenticated (`npx @google/gemini-cli` and follow setup)
 
 ### Installation
 
@@ -36,12 +36,17 @@
    pip install -r requirements.txt
    ```
 
-2. Verify Gemini CLI is working:
+2. Install Node.js dependencies (Gemini CLI):
    ```powershell
-   npx @google/gemini-cli --version
+   npm install
    ```
 
-3. Run the bot:
+3. Install Playwright browser (for web browsing features):
+   ```powershell
+   npx playwright install chromium
+   ```
+
+4. Run the bot:
    ```powershell
    python src/main.py
    ```
@@ -64,6 +69,7 @@
 Edit `config/gemini_settings.json` to configure MCP servers:
 - **filesystem** - Read/write files in your chosen directory
 - **playwright** - Control web browsers
+  > **Note:** Requires `@google/gemini-cli` nightly build (included in `package.json`) for JSON Schema Draft 2020-12 support.
 
 > **Note:** Google Workspace (Calendar, Gmail, Drive) integration is built into Gemini CLI - no additional MCP server needed.
 
@@ -138,6 +144,7 @@ personal_assistant/
 ├── .env                    # Your credentials (git-ignored)
 ├── .env.example            # Template for .env
 ├── requirements.txt        # Python dependencies
+├── package.json            # Node.js dependencies (Gemini CLI)
 ├── config/
 │   ├── settings.py         # Configuration loader
 │   ├── automations.json    # Automation settings

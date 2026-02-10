@@ -1,0 +1,24 @@
+{
+  "name": "personal_assistant",
+  "version": "1.0.0",
+  "description": "> A secure, AI-powered personal assistant that lives in your Telegram. Powered by Gemini CLI with MCP integrations for file management, web browsing, and Google Workspace.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hansel-7/gemini-friend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/hansel-7/gemini-friend/issues"
+  },
+  "homepage": "https://github.com/hansel-7/gemini-friend#readme",
+  "dependencies": {
+    "@google/gemini-cli": "^0.29.0-nightly.20260206.4ffc349c1"
+  }
+}
