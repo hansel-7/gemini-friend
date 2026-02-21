@@ -9,10 +9,15 @@ from src.utils.logger import logger
 
 
 def _replace_refs_with_links(text: str, articles: List[NewsArticle]) -> str:
-    """Replace [1], [2], or bare numbers like '1, 2' with clickable links.
+    """Replace article references with clickable links.
+    
+    Handles multiple formats Gemini may output:
+    - [1] - individual bracketed reference
+    - [10, 13, 15] - grouped bracketed references  
+    - 10, 13, 15 - bare trailing numbers at end of line
     
     Args:
-        text: The Gemini output containing [1], [2], or bare numbers like "1, 2"
+        text: The Gemini output containing references
         articles: List of articles to map indices to URLs
         
     Returns:
@@ -25,46 +30,53 @@ def _replace_refs_with_links(text: str, articles: List[NewsArticle]) -> str:
     # Replace function for any number reference
     def make_link(num: int) -> str:
         if num in url_map:
-            # Escape parentheses in URL for Telegram markdown
+            # Escape parentheses in URL for markdown
             url = url_map[num].replace('(', '%28').replace(')', '%29')
             return f"[{num}]({url})"
         return str(num)
     
-    # First: replace bracketed [N] references
-    def replace_bracketed(match):
+    def nums_to_links(nums_str: str) -> str:
+        """Convert a comma-separated string of numbers to linked format."""
+        parts = re.split(r'\s*,\s*', nums_str.strip())
+        linked = []
+        for part in parts:
+            part = part.strip()
+            if part.isdigit():
+                num = int(part)
+                if 1 <= num <= max_num:
+                    linked.append(make_link(num))
+                else:
+                    linked.append(part)
+            else:
+                linked.append(part)
+        return ', '.join(linked)
+    
+    # Step 1: Replace grouped brackets [N, N, N] with linked versions
+    def replace_grouped(match):
+        return nums_to_links(match.group(1))
+    
+    result = re.sub(r'\[(\d+(?:\s*,\s*\d+)+)\]', replace_grouped, text)
+    
+    # Step 2: Replace individual brackets [N]
+    def replace_single(match):
         num = int(match.group(1))
         return make_link(num)
     
-    result = re.sub(r'\[(\d+)\]', replace_bracketed, text)
+    result = re.sub(r'\[(\d+)\]', replace_single, result)
     
-    # Second: process each line and replace trailing bare numbers
+    # Step 3: Process trailing bare numbers at end of lines
     lines = result.split('\n')
     processed_lines = []
     
     for line in lines:
-        # Check if line ends with numbers like "1" or "1, 2" or "3, 20"
-        # Pattern: one or more numbers separated by ", " at end of line
+        # Match trailing numbers like "1, 2" or "3" at end of line
         match = re.search(r'(\d+(?:\s*,\s*\d+)*)\s*$', line)
         if match:
             refs_str = match.group(1)
             prefix = line[:match.start()]
-            
-            # Only process if there's content before the numbers (not just a bare number line)
+            # Only process if there's content before the numbers
             if prefix.strip():
-                # Split by comma and process each number
-                parts = re.split(r'\s*,\s*', refs_str)
-                linked_parts = []
-                for part in parts:
-                    if part.isdigit():
-                        num = int(part)
-                        if 1 <= num <= max_num:
-                            linked_parts.append(make_link(num))
-                        else:
-                            linked_parts.append(part)
-                    else:
-                        linked_parts.append(part)
-                
-                line = prefix + ', '.join(linked_parts)
+                line = prefix + nums_to_links(refs_str)
         
         processed_lines.append(line)
     

@@ -19,6 +19,6 @@
   },
   "homepage": "https://github.com/hansel-7/gemini-friend#readme",
   "dependencies": {
-    "@google/gemini-cli": "^0.29.0-nightly.20260206.4ffc349c1"
+    "@google/gemini-cli": "^0.29.5"
   }
 }

@@ -66,18 +66,47 @@ class NewsAutomation(BaseAutomation):
         await super().stop()
     
     async def _send_message(self, message: str) -> None:
-        """Send a message to all authorized users."""
+        """Send a message to all authorized users.
+        
+        Converts Markdown to HTML for reliable rendering of links.
+        Splits long messages to stay within Telegram's 4096 char limit.
+        """
         if not self._bot:
             logger.error("News: Bot not initialized")
             return
         
+        # Convert Markdown to HTML for reliable link rendering
+        from src.bot.handlers import _markdown_to_html
+        html_message = _markdown_to_html(message)
+        
+        # Split into chunks if too long (Telegram limit: 4096 chars)
+        max_length = 4000  # Safety margin
+        chunks = []
+        if len(html_message) <= max_length:
+            chunks = [html_message]
+        else:
+            remaining = html_message
+            while remaining:
+                if len(remaining) <= max_length:
+                    chunks.append(remaining)
+                    break
+                split_point = remaining.rfind('\n', 0, max_length)
+                if split_point == -1:
+                    split_point = remaining.rfind(' ', 0, max_length)
+                if split_point == -1:
+                    split_point = max_length
+                chunks.append(remaining[:split_point])
+                remaining = remaining[split_point:].lstrip()
+        
         for user_id in settings.ALLOWED_USER_IDS:
             try:
-                await self._bot.send_message(
-                    chat_id=user_id,
-                    text=message,
-                    parse_mode='Markdown'
-                )
+                for chunk in chunks:
+                    await self._bot.send_message(
+                        chat_id=user_id,
+                        text=chunk,
+                        parse_mode='HTML',
+                        disable_web_page_preview=True,
+                    )
                 logger.info(f"News: Sent digest to user {user_id}")
             except Exception as e:
                 logger.error(f"News: Failed to send to {user_id}: {e}")

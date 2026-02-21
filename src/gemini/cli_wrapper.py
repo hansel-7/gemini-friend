@@ -267,31 +267,27 @@ class GeminiCLI:
             secure_env = os.environ.copy()
             secure_env['GEMINI_MCP_ALLOWED_DIRS'] = self.ALLOWED_DIR
             
-            # Build command - simple piping approach (same as what worked yesterday)
-            # Note: MCP servers may not fully load in subprocess mode, but google-workspace
-            # extension basic functions (like creating docs) still work
+            # Build command using -p/--prompt flag for non-interactive (headless) mode
+            # Note: Gemini CLI v0.29+ defaults to interactive mode; must use -p flag.
+            # We pass -p "" to trigger headless mode, and pipe the actual prompt via
+            # stdin to avoid Windows command-line length limits (~32K chars).
+            
+            # Build the argument list for subprocess
+            gemini_cmd_path = self._get_gemini_cmd().strip('"')
+            cmd_args = [gemini_cmd_path]
+            
             if use_mcp:
                 # Include MCP server whitelist for security
-                allowed_servers_flags = ' '.join(
-                    f'--allowed-mcp-server-names {server}' for server in self.ALLOWED_MCP_SERVERS
-                )
-                gemini_cmd = (
-                    f'type "{prompt_file}" | {self._get_gemini_cmd()} '
-                    f'{allowed_servers_flags} '
-                    f'--yolo'
-                )
-            else:
-                # Fast mode: No MCP servers, just pure LLM processing
-                # Used for simple tasks like JSON extraction where tools aren't needed
-                gemini_cmd = (
-                    f'type "{prompt_file}" | {self._get_gemini_cmd()} '
-                    f'--yolo'
-                )
+                for server in self.ALLOWED_MCP_SERVERS:
+                    cmd_args.extend(['--allowed-mcp-server-names', server])
             
-            logger.debug(f"Gemini command: {gemini_cmd}")
+            cmd_args.extend(['--yolo', '-p', ''])
             
-            process = await asyncio.create_subprocess_shell(
-                gemini_cmd,
+            logger.debug(f"Gemini command: {gemini_cmd_path} -p '' [stdin prompt len={len(full_prompt)}]")
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd_args,
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=self.ALLOWED_DIR,
@@ -302,7 +298,7 @@ class GeminiCLI:
             
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
+                    process.communicate(input=full_prompt.encode('utf-8')),
                     timeout=self.timeout
                 )
             except asyncio.TimeoutError:
