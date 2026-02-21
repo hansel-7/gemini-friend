@@ -21,6 +21,7 @@ class ConversationHistory:
     # Gemini has ~1M tokens. Using 1M chars (~250k tokens) for generous context.
     MAX_CONTEXT_CHARS = 1000000
     WARNING_THRESHOLD = 0.80  # Warn at 80% capacity
+    ARCHIVE_DIR = Path("D:/Gemini CLI/Archive")
     
     def __init__(self, history_file: str = "D:/Gemini CLI/conversation.txt"):
         """Initialize the conversation history manager.
@@ -32,7 +33,8 @@ class ConversationHistory:
         self.summary_file = self.history_file.parent / "conversation_summary.txt"
         self._lock = threading.Lock()
         
-        # Ensure the file exists
+        # Ensure directories and files exist
+        self.ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
         if not self.history_file.exists():
             self.history_file.parent.mkdir(parents=True, exist_ok=True)
             self.history_file.write_text(
@@ -150,6 +152,31 @@ class ConversationHistory:
             logger.error(f"Failed to read summary: {e}")
             return ""
     
+    def _archive_current(self, reason: str = "manual") -> bool:
+        """Archive the current conversation history before clearing.
+        
+        Args:
+            reason: Why the archive is being created (e.g. 'summarized', 'cleared')
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            content = self.get_full_history()
+            # Skip if there's nothing meaningful to archive
+            messages = [l for l in content.strip().split('\n\n') if l.startswith('[')]
+            if not messages:
+                return True
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_file = self.ARCHIVE_DIR / f"conversation_{timestamp}_{reason}.txt"
+            archive_file.write_text(content, encoding='utf-8')
+            logger.info(f"Archived conversation to {archive_file.name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to archive conversation: {e}")
+            return False
+    
     def save_summary(self, summary: str) -> bool:
         """Save a conversation summary and clear the history.
         
@@ -166,6 +193,9 @@ class ConversationHistory:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             with self._lock:
+                # Archive before clearing
+                self._archive_current(reason="summarized")
+                
                 # Append to existing summary if any
                 existing_summary = self.get_summary()
                 if existing_summary:
@@ -183,10 +213,6 @@ class ConversationHistory:
                 
                 # Save the new summary
                 self.summary_file.write_text(new_summary, encoding='utf-8')
-                
-                # Archive the old history (optional - keep for reference)
-                archive_file = self.history_file.parent / f"conversation_archive_{timestamp.replace(':', '-').replace(' ', '_')}.txt"
-                archive_file.write_text(self.get_full_history(), encoding='utf-8')
                 
                 # Clear the main history but note the summarization
                 self.history_file.write_text(
@@ -218,31 +244,35 @@ class ConversationHistory:
             return history
     
     def clear_history(self) -> bool:
-        """Clear the conversation history.
+        """Clear the conversation history (archives first).
         
         Returns:
             True if successful, False otherwise
         """
         try:
             with self._lock:
+                # Archive before clearing
+                self._archive_current(reason="cleared")
+                
                 self.history_file.write_text(
                     "# Conversation History\n"
                     "# Format: [TIMESTAMP] USER/ASSISTANT: message\n"
                     f"# Cleared on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 )
-            logger.info("Conversation history cleared")
+            logger.info("Conversation history cleared (archived first)")
             return True
         except Exception as e:
             logger.error(f"Failed to clear history: {e}")
             return False
     
     def clear_all(self) -> bool:
-        """Clear both history and summary.
+        """Clear both history and summary (archives first).
         
         Returns:
             True if successful, False otherwise
         """
         try:
+            # clear_history already archives
             self.clear_history()
             if self.summary_file.exists():
                 self.summary_file.unlink()
