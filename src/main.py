@@ -29,7 +29,8 @@ from src.bot.handlers import (
     handle_photo,
     handle_document,
     error_handler,
-    set_tasks_automation
+    set_tasks_automation,
+    set_cron_automation
 )
 from src.automations import load_automations, start_automations, stop_automations
 from src.utils.logger import logger
@@ -120,11 +121,12 @@ def main() -> None:
     _loaded_automations = load_automations(application)
     logger.info(f"Loaded {len(_loaded_automations)} automation(s)")
     
-    # Wire up tasks automation for natural language detection
+    # Wire up automations for natural language detection
     for automation in _loaded_automations:
         if automation.name == "tasks":
             set_tasks_automation(automation)
-            break
+        elif automation.name == "cron":
+            set_cron_automation(automation)
     
     # Start the bot
     logger.info("Bot is now running! Press Ctrl+C to stop.")

@@ -24,6 +24,8 @@ gemini = GeminiCLI()
 
 # Task automation reference (set by main.py after loading automations)
 _tasks_automation = None
+# Cron automation reference (set by main.py after loading automations)
+_cron_automation = None
 
 
 def set_tasks_automation(automation) -> None:
@@ -35,6 +37,17 @@ def set_tasks_automation(automation) -> None:
     _tasks_automation = automation
     if automation:
         logger.info("Natural language task detection enabled")
+
+
+def set_cron_automation(automation) -> None:
+    """Set the cron automation instance for natural language schedule detection.
+    
+    Called by main.py after loading automations.
+    """
+    global _cron_automation
+    _cron_automation = automation
+    if automation:
+        logger.info("Natural language cron schedule detection enabled")
 
 
 @authorized_only
@@ -354,6 +367,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_info = get_user_info(update)
     
     logger.info(f"Processing message from {user_info['id']}: {user_message[:50]}...")
+    
+    # Check for natural language cron schedule requests (check before tasks)
+    if _cron_automation and _cron_automation.is_schedule_message(user_message):
+        logger.info("Detected schedule-like message, attempting cron extraction...")
+        
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id, 
+            action='typing'
+        )
+        
+        try:
+            job_created = await _cron_automation.create_job_from_natural_language(
+                user_message, update
+            )
+            
+            if job_created:
+                conversation_history.add_message('USER', user_message, user_info['id'])
+                conversation_history.add_message('ASSISTANT', f"[Cron job created from: {user_message}]")
+                return
+            
+            logger.info("Cron extraction failed, falling back to task/chat")
+            
+        except Exception as e:
+            logger.error(f"Error in cron extraction: {e}")
     
     # Check for natural language task requests
     if _tasks_automation and _tasks_automation.is_task_message(user_message):

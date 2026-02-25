@@ -24,5 +24,12 @@
     "check_interval": 60,
     "send_on_startup": false,
     "max_articles_per_source": 30
+  },
+  "cron": {
+    "enabled": true,
+    "data_file": "D:/Gemini CLI/cron_jobs.json",
+    "check_interval_seconds": 60,
+    "quiet_hours_start": 23.5,
+    "quiet_hours_end": 7
   }
 }
