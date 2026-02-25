@@ -17,6 +17,7 @@
 | ☁️ **Cloud Storage** | Accesses Google Drive via MCP |
 | 📅 **Calendar & Email** | Google Calendar and Gmail integration |
 | ✅ **Task Management** | Checklist with automatic reminders |
+| ⏰ **Cron Jobs** | Dynamic scheduled jobs via natural language or cron expressions |
 | 🧠 **AI Brain** | Proactive engagement and idea generation |
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🔌 **Modular Automations** | Easy to add/remove features |
@@ -91,6 +92,15 @@ Edit `config/gemini_settings.json` to configure MCP servers:
 - `/deltask <id>` - Delete a task
 - `/cleartasks` - Remove completed tasks
 
+### Cron Commands
+- `/cron` - Show cron help
+- `/cron list` - List all scheduled jobs
+- `/cron add "<cron>" <prompt>` - Add job with explicit cron expression
+- `/cron delete <id>` - Delete a scheduled job
+- `/cron pause <id>` - Pause a job
+- `/cron resume <id>` - Resume a paused job
+- Natural language: "Every Monday at 9am, review my deal pipeline" auto-creates a job
+
 ### News Commands
 - `/news` - Manually trigger the daily digest
 
@@ -114,12 +124,19 @@ Automations are modular features that can be enabled/disabled in `config/automat
     "enabled": true,
     "digest_hour": 7,
     "digest_minute": 0
+  },
+  "cron": {
+    "enabled": true,
+    "check_interval_seconds": 60,
+    "quiet_hours_start": 23.5,
+    "quiet_hours_end": 7
   }
 }
 ```
 
 ### Available Automations
 - **tasks** - Task/checklist management with reminders
+- **cron** - Dynamic scheduled jobs (natural language or cron expressions, fires via Gemini CLI with MCP)
 - **news** - Daily gaming news digest with AI summarization
 - **brain** - Proactive AI engagement
 
@@ -162,6 +179,10 @@ personal_assistant/
     │   │   ├── manager.py  # Task CRUD
     │   │   ├── scheduler.py # Reminders
     │   │   └── handlers.py # Commands
+    │   ├── cron/           # Dynamic scheduled jobs
+    │   │   ├── manager.py  # Job CRUD + JSON persistence
+    │   │   ├── scheduler.py # Background job runner
+    │   │   └── handlers.py # /cron commands + NL detection
     │   ├── news/           # News scraper & summarizer
     │   │   ├── scraper.py
     │   │   ├── scheduler.py
