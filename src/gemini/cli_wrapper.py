@@ -79,8 +79,10 @@ class GeminiCLI:
         self.current_process: Optional[subprocess.Popen] = None
         self.timeout = settings.GEMINI_TIMEOUT
         self._persona: Optional[str] = None
+        self._capabilities: Optional[str] = None
         self._setup_gemini_config()
         self._load_persona()
+        self._load_capabilities()
     
     def _load_persona(self) -> None:
         """Load the persona configuration file if it exists."""
@@ -104,6 +106,62 @@ class GeminiCLI:
         """
         self._load_persona()
         return self._persona is not None
+    
+    def _load_capabilities(self) -> None:
+        """Load capabilities manifest from config file.
+        
+        Reads config/capabilities.json and builds a formatted prompt section
+        that tells Gemini what the bot can do, so it can proactively suggest
+        relevant actions to the user.
+        """
+        try:
+            config_path = Path(__file__).parent.parent.parent / 'config' / 'capabilities.json'
+            if not config_path.exists():
+                logger.info(f"No capabilities manifest found at {config_path}")
+                self._capabilities = None
+                return
+            
+            with open(config_path, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+            
+            # Build the formatted capabilities section
+            instruction = manifest.get('instruction', '')
+            capabilities = manifest.get('capabilities', [])
+            
+            if not capabilities:
+                self._capabilities = None
+                return
+            
+            lines = []
+            lines.append(f"=== YOUR BOT CAPABILITIES ===")
+            lines.append(instruction)
+            lines.append("")
+            
+            for i, cap in enumerate(capabilities, 1):
+                name = cap.get('name', 'Unknown')
+                desc = cap.get('description', '')
+                triggers = cap.get('triggers', [])
+                examples = cap.get('examples', [])
+                commands = cap.get('commands', [])
+                
+                lines.append(f"{i}. {name}: {desc}")
+                if commands:
+                    lines.append(f"   Commands: {', '.join(commands)}")
+                if triggers:
+                    lines.append(f"   Suggest when: {'; '.join(triggers)}")
+                if examples:
+                    lines.append(f"   Example suggestion: \"{examples[0]}\"")
+                lines.append("")
+            
+            lines.append("IMPORTANT: Only suggest capabilities when genuinely relevant to the user's message. Don't list capabilities unprompted. Be natural and conversational.")
+            lines.append("=== END CAPABILITIES ===\n")
+            
+            self._capabilities = '\n'.join(lines)
+            logger.info(f"Loaded {len(capabilities)} capabilities from manifest")
+            
+        except Exception as e:
+            logger.warning(f"Could not load capabilities manifest: {e}")
+            self._capabilities = None
     
     def _setup_gemini_config(self) -> None:
         """Set up Gemini CLI configuration with MCP servers.
@@ -229,6 +287,11 @@ class GeminiCLI:
                 f"{self._persona}\n\n"
             )
         
+        # Build capabilities section (only for MCP-enabled requests)
+        capabilities_section = ""
+        if self._capabilities and use_mcp:
+            capabilities_section = self._capabilities + "\n"
+        
         # SECURITY: Add security instruction only when MCP is enabled
         security_prefix = ""
         if use_mcp:
@@ -244,16 +307,17 @@ class GeminiCLI:
                 f"Current working directory is: {self.ALLOWED_DIR}\n\n"
             )
         
-        # Build the full prompt with persona, security, and context
+        # Build the full prompt with persona, capabilities, security, and context
         if context:
             full_prompt = (
                 f"{persona_section}"
+                f"{capabilities_section}"
                 f"{security_prefix}"
                 f"Previous conversation context:\n{context}\n\n"
                 f"Current user message (respond to this): {message}"
             )
         else:
-            full_prompt = f"{persona_section}{security_prefix}{message}"
+            full_prompt = f"{persona_section}{capabilities_section}{security_prefix}{message}"
         
         # Write prompt to a temp file to avoid shell escaping issues
         prompt_file = None
