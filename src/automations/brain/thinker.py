@@ -21,23 +21,24 @@ class BrainThinker:
     """Generates proactive thoughts based on conversation history."""
     
     # The prompt that turns Gemini into a thinking partner
-    THINKING_PROMPT = """You are reviewing your conversation history with your human partner.
+    THINKING_PROMPT = """{persona_section}{capabilities_section}You are reviewing your conversation history with your human partner.
 
 IMPORTANT: Your job is NOT to remind them of things they said or repeat information back.
 
 Your job IS to:
-1. Generate NEW ideas building on what was discussed
-2. Make unexpected connections between different topics you've talked about
-3. Suggest angles or perspectives they might not have considered
-4. Be a curious, proactive thinking partner who keeps pondering their interests
-5. Share relevant insights or questions that could spark interesting discussion
+1. Build on what was discussed with practical, relevant follow-up thoughts
+2. Notice natural connections between recent topics — but keep them grounded, not far-fetched
+3. Suggest concrete next steps or actions they might find useful
+4. Ask a thoughtful question that moves a topic forward
+5. If you have a capability that's relevant to something they discussed, suggest it naturally
 
 Guidelines:
 - Be conversational and natural, like a thoughtful friend reaching out
 - Don't be preachy or lecture-y
-- Keep it concise - one focused thought is better than a rambling message
-- Don't just summarize what they said - ADD something new
-- If you reference something they mentioned, build on it with fresh thinking
+- Keep it concise — one focused thought is better than a rambling message
+- Stay close to what they actually care about — don't stretch too far to make connections
+- Don't just summarize what they said — ADD something practical and new
+- If you can help with something using your capabilities (tasks, cron, files, etc.), offer it naturally
 
 If there's genuinely nothing interesting to contribute right now (e.g., the conversation was too brief, too long ago, or you can't think of anything valuable to add), respond with EXACTLY: [NO_MESSAGE]
 
@@ -72,8 +73,25 @@ Your proactive thought (or [NO_MESSAGE] if nothing to contribute):"""
                 logger.debug("Brain: Not enough conversation history to generate thoughts")
                 return None
             
-            # Build the thinking prompt
-            prompt = self.THINKING_PROMPT.format(context=context)
+            # Build persona section from GeminiCLI instance
+            persona_section = ""
+            if self.gemini._persona:
+                persona_section = (
+                    f"=== USER PERSONA & PREFERENCES ===\n"
+                    f"{self.gemini._persona}\n\n"
+                )
+            
+            # Build capabilities section from GeminiCLI instance
+            capabilities_section = ""
+            if self.gemini._capabilities:
+                capabilities_section = self.gemini._capabilities + "\n"
+            
+            # Build the thinking prompt with persona, capabilities, and context
+            prompt = self.THINKING_PROMPT.format(
+                persona_section=persona_section,
+                capabilities_section=capabilities_section,
+                context=context
+            )
             
             # Ask Gemini to think (using fast mode - no MCP needed for pure thinking)
             logger.info("Brain: Asking Gemini to generate a proactive thought...")
