@@ -18,6 +18,7 @@ from src.bot.security import authorized_only, get_user_info
 from src.gemini.cli_wrapper import GeminiCLI
 from src.utils.logger import logger
 from src.utils.conversation import conversation_history
+from src.scraper import scrape_url
 
 # Initialize Gemini CLI wrapper
 gemini = GeminiCLI()
@@ -93,17 +94,25 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/done - Mark task as complete\n"
         "/deltask - Delete a task\n"
         "/cleartasks - Clear completed tasks\n\n"
+        "*Cron Jobs:*\n"
+        "/cron - Show cron help\n"
+        "/cron list - List all scheduled jobs\n"
+        "/cron add \"<cron>\" <prompt> - Add a job\n"
+        "/cron delete <id> - Delete a job\n"
+        "Or just say: \"Every Monday at 9am, check the news\"\n\n"
+        "*Web Scraping:*\n"
+        "/scrape (url) - Scrape and summarize a webpage\n"
+        "/scrape (url) (question) - Scrape and answer a question\n\n"
         "*Context:*\n"
         "/context - Check context window usage\n"
         "/summarize - Summarize conversation\n"
         "/clear - Clear conversation history\n"
         "/clearall - Clear history AND summary\n"
         "/cancel - Cancel current operation\n\n"
-        "*Adding Tasks (natural language):*\n"
+        "*Natural Language:*\n"
         "• \"Remind me to call mom by Friday 8pm\"\n"
-        "• \"I need to buy groceries and call mom\"\n"
-        "• \"Remind me to finish report; call dentist; buy milk\"\n\n"
-        "_Separate multiple tasks with \"and\" or \";\"_"
+        "• \"Every weekday at 9am, summarize AI news\"\n\n"
+        "_Tasks and cron jobs can be created from natural language._"
     )
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -354,6 +363,88 @@ async def summarize_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     except Exception as e:
         logger.error(f"Error summarizing conversation: {e}")
         await update.message.reply_text(f"❌ Error generating summary: {str(e)}")
+
+
+@authorized_only
+async def scrape_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle the /scrape command.
+    
+    Usage: /scrape <url> [optional question about the page]
+    Scrapes the given URL and analyzes the content with Gemini.
+    """
+    user_info = get_user_info(update)
+    raw_text = update.message.text or ""
+    
+    # Parse: /scrape <url> [question]
+    parts = raw_text.split(None, 2)  # ['scrape', 'url', 'question...']
+    
+    if len(parts) < 2:
+        await update.message.reply_text(
+            "🔍 *Web Scraper*\n\n"
+            "Usage: `/scrape <url> [question]`\n\n"
+            "Examples:\n"
+            "• `/scrape https://example.com`\n"
+            "• `/scrape https://techcrunch.com/article Who raised funding?`",
+            parse_mode='Markdown'
+        )
+        return
+    
+    url = parts[1]
+    question = parts[2] if len(parts) > 2 else None
+    
+    logger.info(f"Scrape command from {user_info['id']}: {url}")
+    
+    # Send processing message
+    processing_msg = await update.message.reply_text("🔍 Scraping page...")
+    
+    try:
+        # Scrape the URL
+        result = await scrape_url(url)
+        
+        if not result["success"]:
+            await processing_msg.edit_text(
+                f"❌ Scrape Failed\n\n{result['error']}"
+            )
+            return
+        
+        # Build prompt for Gemini
+        if question:
+            analysis_prompt = (
+                f"I scraped the following webpage. Answer the user's question based on the content.\n\n"
+                f"Page Title: {result['title']}\n"
+                f"URL: {result['url']}\n\n"
+                f"--- PAGE CONTENT ---\n{result['content']}\n--- END CONTENT ---\n\n"
+                f"User's question: {question}"
+            )
+        else:
+            analysis_prompt = (
+                f"I scraped the following webpage. Provide a clear, structured summary of the key information.\n\n"
+                f"Page Title: {result['title']}\n"
+                f"URL: {result['url']}\n\n"
+                f"--- PAGE CONTENT ---\n{result['content']}\n--- END CONTENT ---\n\n"
+                f"Summarize the most important information from this page."
+            )
+        
+        await processing_msg.edit_text("🧠 Analyzing content with Gemini...")
+        
+        # Use Gemini without MCP for fast text analysis
+        response = await gemini.send_message(analysis_prompt, use_mcp=False)
+        
+        # Save to conversation history
+        conversation_history.add_message('USER', f"[Scraped: {url}] {question or 'Summarize'}", user_info['id'])
+        conversation_history.add_message('ASSISTANT', response)
+        
+        # Delete processing message and send response
+        await processing_msg.delete()
+        await send_long_message(update, response)
+        
+        logger.info(f"Successfully processed /scrape for {user_info['id']}")
+        
+    except Exception as e:
+        logger.error(f"Error in scrape command: {e}")
+        await processing_msg.edit_text(
+            f"❌ Error scraping page:\n\n{str(e)}"
+        )
 
 
 @authorized_only

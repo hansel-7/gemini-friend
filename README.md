@@ -20,6 +20,7 @@
 | ⏰ **Cron Jobs** | Dynamic scheduled jobs via natural language or cron expressions |
 | 🧠 **AI Brain** | Proactive engagement and idea generation |
 | 📰 **News Digest** | Daily gaming industry news summaries |
+| 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
 | 💡 **Capabilities Manifest** | Bot self-awareness — proactively suggests relevant features |
 | 🔌 **Modular Automations** | Easy to add/remove features |
 
@@ -113,6 +114,11 @@ This allows the bot to proactively suggest actions (e.g., *"Want me to set a rem
 ### News Commands
 - `/news` - Manually trigger the daily digest
 
+### Web Scraping Commands
+- `/scrape <url>` - Scrape a page and get an AI summary
+- `/scrape <url> <question>` - Scrape a page and ask a specific question about it
+- Tries fast HTTP first, falls back to stealth browser for anti-bot protected sites
+
 ### Context Commands
 - `/context` - Check context window usage
 - `/summarize` - Summarize conversation history
@@ -200,6 +206,7 @@ personal_assistant/
     │   └── brain/          # AI Brain (proactive engagement)
     │       ├── thinker.py  # Thought generation
     │       └── scheduler.py # Scheduling logic
+    ├── scraper.py          # Web scraping (Scrapling)
     └── utils/
         ├── logger.py       # Logging
         └── conversation.py # Context management
@@ -213,5 +220,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Gemini CLI](https://github.com/google/gemini-cli) - The AI backbone powering this bot
 - [python-telegram-bot](https://python-telegram-bot.org/) - Telegram Bot API wrapper
+- [Scrapling](https://github.com/D4Vinci/Scrapling) - Adaptive web scraping framework with anti-bot bypass
 - [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) - For tool integrations
 

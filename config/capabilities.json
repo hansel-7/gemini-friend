@@ -106,6 +106,24 @@
             ]
         },
         {
+            "name": "Web Scraping",
+            "description": "Scrape any webpage and extract its content for analysis. Handles anti-bot protections automatically. Use /scrape command with a URL.",
+            "commands": [
+                "/scrape"
+            ],
+            "natural_language": false,
+            "triggers": [
+                "user shares a URL and wants to know what's on it",
+                "user wants to extract information from a specific webpage",
+                "user can't access a page due to paywalls or anti-bot",
+                "user wants structured data from a website"
+            ],
+            "examples": [
+                "I can scrape that page for you — just use `/scrape <url>` and I'll extract and summarize the content.",
+                "Want me to pull the info from that link? Use `/scrape <url> <your question>` and I'll analyze it."
+            ]
+        },
+        {
             "name": "Conversation Management",
             "description": "Manage conversation context window. Summarize history to free up space, clear history, or check context usage.",
             "commands": [

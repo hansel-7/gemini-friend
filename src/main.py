@@ -25,6 +25,7 @@ from src.bot.handlers import (
     clearall_command,
     context_command,
     summarize_command,
+    scrape_command,
     handle_message,
     handle_photo,
     handle_document,
@@ -98,6 +99,7 @@ def main() -> None:
     application.add_handler(CommandHandler("cancel", cancel_command))
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("clearall", clearall_command))
+    application.add_handler(CommandHandler("scrape", scrape_command))
     
     # Add message handler (for all text messages that aren't commands)
     application.add_handler(
