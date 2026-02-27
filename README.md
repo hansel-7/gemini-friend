@@ -20,6 +20,7 @@
 | ⏰ **Cron Jobs** | Dynamic scheduled jobs via natural language or cron expressions |
 | 🧠 **AI Brain** | Proactive engagement and idea generation |
 | 📰 **News Digest** | Daily gaming industry news summaries |
+| 💡 **Capabilities Manifest** | Bot self-awareness — proactively suggests relevant features |
 | 🔌 **Modular Automations** | Easy to add/remove features |
 
 ## 🚀 Quick Start
@@ -73,6 +74,14 @@ Edit `config/gemini_settings.json` to configure MCP servers:
   > **Note:** Requires `@google/gemini-cli` v0.29.5+ (included in `package.json`).
 
 > **Note:** Google Workspace (Calendar, Gmail, Drive) integration is built into Gemini CLI - no additional MCP server needed.
+
+### Capabilities Manifest
+
+Edit `config/capabilities.json` to teach the bot about its own features. Each capability has:
+- **triggers** — contextual cues for when to suggest the feature
+- **examples** — sample suggestions the AI can use
+
+This allows the bot to proactively suggest actions (e.g., *"Want me to set a reminder for that?"*) instead of waiting for explicit commands.
 
 ## Usage
 
@@ -165,6 +174,7 @@ personal_assistant/
 ├── config/
 │   ├── settings.py         # Configuration loader
 │   ├── automations.json    # Automation settings
+│   ├── capabilities.json   # Bot capabilities manifest
 │   └── gemini_settings.json # MCP server config
 └── src/
     ├── main.py             # Entry point
