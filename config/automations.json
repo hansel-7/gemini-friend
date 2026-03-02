@@ -31,5 +31,12 @@
     "check_interval_seconds": 60,
     "quiet_hours_start": 23.5,
     "quiet_hours_end": 7
+  },
+  "expenses": {
+    "enabled": true,
+    "data_file": "D:/Gemini CLI/expenses.json",
+    "scan_interval_minutes": 60,
+    "alert_sender_email": "unialerts@uobgroup.com",
+    "currency": "VND"
   }
 }

@@ -21,6 +21,7 @@
 | 🧠 **AI Brain** | Proactive engagement and idea generation |
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
+| 💰 **Expense Tracking** | Auto-detect credit card transactions via Gmail + manual input |
 | 💡 **Capabilities Manifest** | Bot self-awareness — proactively suggests relevant features |
 | 🔌 **Modular Automations** | Easy to add/remove features |
 
@@ -119,6 +120,15 @@ This allows the bot to proactively suggest actions (e.g., *"Want me to set a rem
 - `/scrape <url> <question>` - Scrape a page and ask a specific question about it
 - Tries fast HTTP first, falls back to stealth browser for anti-bot protected sites
 
+### Expense Commands
+- `/expense <amount> <description>` - Add a manual expense (e.g., `/expense 250k coffee`)
+- `/expense` - Show today's expenses
+- `/expenses` - Monthly spending summary
+- `/expenses week` - Weekly spending summary
+- `/describe <id> <text>` - Add description to an auto-detected transaction
+- `/delexpense <id>` - Delete an expense
+- Credit card transactions from UOB are auto-detected hourly via Gmail scanning
+
 ### Context Commands
 - `/context` - Check context window usage
 - `/summarize` - Summarize conversation history
@@ -145,6 +155,11 @@ Automations are modular features that can be enabled/disabled in `config/automat
     "check_interval_seconds": 60,
     "quiet_hours_start": 23.5,
     "quiet_hours_end": 7
+  },
+  "expenses": {
+    "enabled": true,
+    "scan_interval_minutes": 60,
+    "alert_sender_email": "unialerts@uobgroup.com"
   }
 }
 ```
@@ -154,6 +169,7 @@ Automations are modular features that can be enabled/disabled in `config/automat
 - **cron** - Dynamic scheduled jobs (natural language or cron expressions, fires via Gemini CLI with MCP)
 - **news** - Daily gaming news digest with AI summarization
 - **brain** - Proactive AI engagement
+- **expenses** - Expense tracking with auto Gmail scanning for credit card alerts
 
 ### Adding New Automations
 1. Create folder: `src/automations/my_feature/`
@@ -203,6 +219,10 @@ personal_assistant/
     │   │   ├── scraper.py
     │   │   ├── scheduler.py
     │   │   └── summarizer.py
+    │   ├── expenses/        # Expense tracking
+    │   │   ├── manager.py   # Expense CRUD + JSON storage
+    │   │   ├── scanner.py   # Gmail scanner for CC alerts
+    │   │   └── handlers.py  # Commands + automation class
     │   └── brain/          # AI Brain (proactive engagement)
     │       ├── thinker.py  # Thought generation
     │       └── scheduler.py # Scheduling logic

@@ -459,11 +459,18 @@ class CronAutomation(BaseAutomation):
             
             # Handle long messages (Telegram limit ~4096 chars)
             if len(full_message) <= 4096:
-                await self.application.bot.send_message(
-                    chat_id=self.user_id,
-                    text=full_message,
-                    parse_mode='Markdown'
-                )
+                try:
+                    await self.application.bot.send_message(
+                        chat_id=self.user_id,
+                        text=full_message,
+                        parse_mode='Markdown'
+                    )
+                except Exception:
+                    # Markdown parse failed — send as plain text
+                    await self.application.bot.send_message(
+                        chat_id=self.user_id,
+                        text=f"⏰ Scheduled: {job.label}\n\n{message}"
+                    )
             else:
                 # Send header, then chunk the response
                 await self.application.bot.send_message(
@@ -471,7 +478,7 @@ class CronAutomation(BaseAutomation):
                     text=header,
                     parse_mode='Markdown'
                 )
-                # Send response in chunks
+                # Send response in chunks (plain text to avoid parse errors)
                 for i in range(0, len(message), 4000):
                     chunk = message[i:i+4000]
                     await self.application.bot.send_message(

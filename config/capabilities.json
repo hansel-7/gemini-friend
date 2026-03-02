@@ -124,6 +124,27 @@
             ]
         },
         {
+            "name": "Expense Tracking",
+            "description": "Track expenses manually or automatically from credit card email alerts. Auto-categorizes spending and provides summaries.",
+            "commands": [
+                "/expense",
+                "/expenses",
+                "/describe",
+                "/delexpense"
+            ],
+            "natural_language": false,
+            "triggers": [
+                "user mentions spending money or buying something",
+                "user talks about a purchase or transaction",
+                "user wants to track or review their spending",
+                "user mentions budget or expenses"
+            ],
+            "examples": [
+                "Want me to log that as an expense? Use `/expense 250k coffee` to record it.",
+                "You can check your spending with `/expenses` for a monthly summary or `/expense` for today."
+            ]
+        },
+        {
             "name": "Conversation Management",
             "description": "Manage conversation context window. Summarize history to free up space, clear history, or check context usage.",
             "commands": [
