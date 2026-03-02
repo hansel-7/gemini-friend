@@ -26,8 +26,8 @@ from src.automations.cron.scheduler import CronScheduler
 from src.gemini.cli_wrapper import GeminiCLI
 from src.utils.conversation import conversation_history
 from src.utils.logger import logger
-from src.bot.security import authorized_only
 from config.settings import settings
+from src.bot.security import authorized_only
 
 
 # Keywords that indicate a recurring schedule request
@@ -89,7 +89,9 @@ class CronAutomation(BaseAutomation):
         super().__init__(application, config)
         
         # Manager for job CRUD
-        data_file = config.get('data_file', 'D:/Gemini CLI/cron_jobs.json')
+        data_file = config.get('data_file', 'cron_jobs.json')
+        if not Path(data_file).is_absolute():
+            data_file = str(settings.DATA_DIR / data_file)
         self.manager = CronJobManager(data_file=data_file)
         
         # Scheduler for background execution

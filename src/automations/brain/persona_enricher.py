@@ -11,12 +11,13 @@ from typing import Optional, Tuple
 from src.gemini.cli_wrapper import GeminiCLI
 from src.utils.conversation import conversation_history
 from src.utils.logger import logger
+from config.settings import settings
 
 
 class PersonaEnricher:
     """Analyzes conversations and generates persona update suggestions."""
     
-    PERSONA_FILE = Path("D:/Gemini CLI/persona.txt")
+    PERSONA_FILE = settings.DATA_DIR / "persona.txt"
     
     ENRICHMENT_PROMPT = """You are analyzing a week of conversations to learn new things about the user.
 

@@ -63,7 +63,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     welcome_message = (
         "👋 *Welcome to your Personal Assistant!*\n\n"
         "I'm connected to Gemini CLI and ready to help you with:\n"
-        "• 📁 File management (D:\\Gemini CLI)\n"
+        "• 📁 File management (workspace folder)\n"
         "• 🌐 Web browsing and research\n"
         "• 🖥️ Desktop automation\n"
         "• ☁️ Google Drive access\n\n"
@@ -747,7 +747,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         voice_file = await voice.get_file()
         
         # Save to temp file
-        temp_path = Path(f"D:/Gemini CLI/telegram_voice_{uuid.uuid4().hex[:8]}.ogg")
+        temp_path = Path(settings.DATA_DIR) / f"telegram_voice_{uuid.uuid4().hex[:8]}.ogg"
         await voice_file.download_to_drive(temp_path)
         
         logger.info(f"Voice file downloaded: {temp_path} ({voice.duration}s)")

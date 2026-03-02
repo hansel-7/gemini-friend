@@ -1,6 +1,6 @@
 """Cron job manager — CRUD operations for dynamic scheduled jobs.
 
-Stores jobs in a JSON file at D:/Gemini CLI/cron_jobs.json.
+Stores jobs in a JSON file (configurable via DATA_DIR).
 """
 
 import json
@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.utils.logger import logger
+from config.settings import settings
 
 
 class CronJob:
@@ -149,7 +150,9 @@ class CronJob:
 class CronJobManager:
     """Manages CRUD operations for cron jobs."""
     
-    def __init__(self, data_file: str = "D:/Gemini CLI/cron_jobs.json"):
+    def __init__(self, data_file: str = None):
+        if data_file is None:
+            data_file = str(settings.DATA_DIR / 'cron_jobs.json')
         self.data_file = Path(data_file)
         self._lock = threading.Lock()
         self._jobs: List[CronJob] = []

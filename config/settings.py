@@ -31,6 +31,7 @@ class Settings:
     GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
     
     # Paths
+    DATA_DIR: Path = Path(os.getenv('DATA_DIR', 'D:/Gemini CLI'))
     PROJECT_ROOT: Path = Path(__file__).parent.parent
     CONFIG_DIR: Path = PROJECT_ROOT / 'config'
     GEMINI_SETTINGS_PATH: Path = CONFIG_DIR / 'gemini_settings.json'

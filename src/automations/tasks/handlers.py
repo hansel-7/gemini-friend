@@ -145,7 +145,9 @@ class TasksAutomation(BaseAutomation):
         super().__init__(application, config)
         
         # Initialize task manager
-        data_file = config.get('data_file', 'D:/Gemini CLI/tasks.json')
+        data_file = config.get('data_file', 'tasks.json')
+        if not Path(data_file).is_absolute():
+            data_file = str(settings.DATA_DIR / data_file)
         self.task_manager = TaskManager(data_file)
         
         # Initialize scheduler with new reminder strategy

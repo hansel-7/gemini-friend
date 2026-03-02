@@ -44,7 +44,7 @@
         },
         {
             "name": "File Management",
-            "description": "Read, write, and organize files in the designated workspace directory (D:/Gemini CLI). Can save notes, create documents, and manage folder structure.",
+            "description": "Read, write, and organize files in the designated workspace directory. Can save notes, create documents, and manage folder structure.",
             "commands": [],
             "natural_language": true,
             "triggers": [
@@ -125,7 +125,7 @@
         },
         {
             "name": "Expense Tracking",
-            "description": "Track expenses manually or automatically from credit card email alerts. Auto-categorizes spending and provides summaries. Expense data is stored in D:/Gemini CLI/expenses.json — you can read this file to answer natural language questions about spending history.",
+            "description": "Track expenses manually or automatically from credit card email alerts. Auto-categorizes spending and provides summaries. Expense data is stored in expenses.json — you can read this file to answer natural language questions about spending history.",
             "commands": [
                 "/expense",
                 "/expenses",

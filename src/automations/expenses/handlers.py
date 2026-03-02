@@ -73,7 +73,9 @@ class ExpenseAutomation(BaseAutomation):
         super().__init__(application, config)
         
         # Manager for expense CRUD
-        data_file = config.get('data_file', 'D:/Gemini CLI/expenses.json')
+        data_file = config.get('data_file', 'expenses.json')
+        if not Path(data_file).is_absolute():
+            data_file = str(settings.DATA_DIR / data_file)
         self.manager = ExpenseManager(data_file=data_file)
         
         # Gemini CLI for parsing and categorizing

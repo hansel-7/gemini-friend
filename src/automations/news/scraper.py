@@ -15,6 +15,8 @@ import re
 
 import httpx
 
+from config.settings import settings
+
 # RSS feeds for all sources
 FEEDS = {
     "gamesindustry": "https://www.gamesindustry.biz/feed",
@@ -24,7 +26,7 @@ FEEDS = {
 }
 
 # Data directory for news archives and state (outside of code repo)
-NEWS_DATA_DIR = Path("D:/Gemini CLI/News")
+NEWS_DATA_DIR = settings.DATA_DIR / "News"
 NEWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # File to track seen articles (prevents duplicates across days)

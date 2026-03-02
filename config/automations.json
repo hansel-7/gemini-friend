@@ -2,7 +2,7 @@
   "tasks": {
     "enabled": true,
     "reminder_check_interval": 60,
-    "data_file": "D:/Gemini CLI/tasks.json",
+    "data_file": "tasks.json",
     "daily_digest_hour": 7,
     "daily_digest_minute": 0,
     "hours_before_deadline": 1
@@ -13,7 +13,7 @@
     "quiet_hours_start": 23.5,
     "quiet_hours_end": 7,
     "min_gap_between_messages_hours": 2,
-    "conversation_file": "D:/Gemini CLI/conversation.txt",
+    "conversation_file": "conversation.txt",
     "persona_update_day": 6,
     "persona_update_hour": 21
   },
@@ -27,14 +27,14 @@
   },
   "cron": {
     "enabled": true,
-    "data_file": "D:/Gemini CLI/cron_jobs.json",
+    "data_file": "cron_jobs.json",
     "check_interval_seconds": 60,
     "quiet_hours_start": 23.5,
     "quiet_hours_end": 7
   },
   "expenses": {
     "enabled": true,
-    "data_file": "D:/Gemini CLI/expenses.json",
+    "data_file": "expenses.json",
     "scan_interval_minutes": 60,
     "alert_sender_email": "unialerts@uobgroup.com",
     "currency": "VND"

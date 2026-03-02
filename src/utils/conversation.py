@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, str(__file__).replace('\\', '/').rsplit('/src/', 1)[0])
 
 from src.utils.logger import logger
+from config.settings import settings
 
 
 class ConversationHistory:
@@ -21,14 +22,16 @@ class ConversationHistory:
     # Gemini has ~1M tokens. Using 1M chars (~250k tokens) for generous context.
     MAX_CONTEXT_CHARS = 1000000
     WARNING_THRESHOLD = 0.80  # Warn at 80% capacity
-    ARCHIVE_DIR = Path("D:/Gemini CLI/Archive")
+    ARCHIVE_DIR = settings.DATA_DIR / "Archive"
     
-    def __init__(self, history_file: str = "D:/Gemini CLI/conversation.txt"):
+    def __init__(self, history_file: str = None):
         """Initialize the conversation history manager.
         
         Args:
             history_file: Path to the conversation history file
         """
+        if history_file is None:
+            history_file = str(settings.DATA_DIR / "conversation.txt")
         self.history_file = Path(history_file)
         self.summary_file = self.history_file.parent / "conversation_summary.txt"
         self._lock = threading.Lock()

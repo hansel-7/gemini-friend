@@ -51,7 +51,7 @@ class GeminiCLI:
     
     
     # SECURITY: Local filesystem restriction
-    ALLOWED_DIR = "D:/Gemini CLI"
+    ALLOWED_DIR = str(settings.DATA_DIR)
     
     # SECURITY: Only these MCP servers are allowed to run
     # - filesystem: local file access (restricted to ALLOWED_DIR)
@@ -86,7 +86,7 @@ class GeminiCLI:
         return 'npx @google/gemini-cli'
     
     # Persona configuration file
-    PERSONA_FILE = "D:/Gemini CLI/persona.txt"
+    PERSONA_FILE = str(settings.DATA_DIR / "persona.txt")
     
     def __init__(self):
         """Initialize the Gemini CLI wrapper."""
