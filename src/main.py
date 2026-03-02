@@ -27,6 +27,7 @@ from src.bot.handlers import (
     summarize_command,
     scrape_command,
     handle_message,
+    handle_voice,
     handle_photo,
     handle_document,
     error_handler,
@@ -109,6 +110,11 @@ def main() -> None:
     # Add photo handler
     application.add_handler(
         MessageHandler(filters.PHOTO, handle_photo)
+    )
+    
+    # Add voice handler
+    application.add_handler(
+        MessageHandler(filters.VOICE, handle_voice)
     )
     
     # Add document/file handler

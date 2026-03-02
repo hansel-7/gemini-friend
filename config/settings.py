@@ -27,6 +27,9 @@ class Settings:
     GEMINI_CLI_COMMAND: str = os.getenv('GEMINI_CLI_COMMAND', 'npx @google/gemini-cli')
     GEMINI_TIMEOUT: int = int(os.getenv('GEMINI_TIMEOUT', '300'))
     
+    # Groq API (for Whisper voice transcription)
+    GROQ_API_KEY: str = os.getenv('GROQ_API_KEY', '')
+    
     # Paths
     PROJECT_ROOT: Path = Path(__file__).parent.parent
     CONFIG_DIR: Path = PROJECT_ROOT / 'config'

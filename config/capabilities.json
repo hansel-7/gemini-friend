@@ -125,7 +125,7 @@
         },
         {
             "name": "Expense Tracking",
-            "description": "Track expenses manually or automatically from credit card email alerts. Auto-categorizes spending and provides summaries.",
+            "description": "Track expenses manually or automatically from credit card email alerts. Auto-categorizes spending and provides summaries. Expense data is stored in D:/Gemini CLI/expenses.json — you can read this file to answer natural language questions about spending history.",
             "commands": [
                 "/expense",
                 "/expenses",
@@ -137,11 +137,13 @@
                 "user mentions spending money or buying something",
                 "user talks about a purchase or transaction",
                 "user wants to track or review their spending",
-                "user mentions budget or expenses"
+                "user mentions budget or expenses",
+                "user asks about spending history or how much they spent"
             ],
             "examples": [
                 "Want me to log that as an expense? Use `/expense 250k coffee` to record it.",
-                "You can check your spending with `/expenses` for a monthly summary or `/expense` for today."
+                "You can check your spending with `/expenses` for a monthly summary or `/expense` for today.",
+                "For custom queries like 'what did I spend on food this week', I can read the expenses.json file directly."
             ]
         },
         {
@@ -162,6 +164,18 @@
             "examples": [
                 "Our conversation is getting long — you can use /summarize to compress the history while keeping the key points.",
                 "Use /context to see how much conversation space we've used."
+            ]
+        },
+        {
+            "name": "Voice Messages",
+            "description": "Send voice messages which are auto-transcribed via Groq Whisper and processed as text. Works with all features including tasks and cron jobs.",
+            "commands": [],
+            "natural_language": true,
+            "triggers": [
+                "user sends a voice message"
+            ],
+            "examples": [
+                "Voice messages are automatically transcribed and I respond as if you typed the text."
             ]
         }
     ]

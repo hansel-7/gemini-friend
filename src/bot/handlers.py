@@ -118,7 +118,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "*Natural Language:*\n"
         "• \"Remind me to call mom by Friday 8pm\"\n"
         "• \"Every weekday at 9am, summarize AI news\"\n\n"
-        "_Tasks and cron jobs can be created from natural language._"
+        "*Voice:*\n"
+        "🎤 Send a voice message — auto-transcribed and processed\n\n"
+        "_Tasks and cron jobs can be created from natural language or voice._"
     )
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -453,14 +455,12 @@ async def scrape_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
 
-@authorized_only
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle regular text messages.
+async def _process_text_message(user_message: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Core message processing pipeline.
     
-    Checks for natural language task requests first, then forwards
-    to Gemini CLI for regular chat.
+    Shared by handle_message (text) and handle_voice (transcribed audio).
+    Checks for natural language task/cron requests, then forwards to Gemini CLI.
     """
-    user_message = update.message.text
     user_info = get_user_info(update)
     
     logger.info(f"Processing message from {user_info['id']}: {user_message[:50]}...")
@@ -698,6 +698,12 @@ async def send_long_message(update: Update, text: str, max_length: int = 4000) -
             await update.message.reply_text(prefix + chunk)
 
 
+@authorized_only
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle regular text messages."""
+    await _process_text_message(update.message.text, update, context)
+
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors that occur during update processing."""
     logger.error(f"Update {update} caused error: {context.error}")
@@ -707,6 +713,80 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             "❌ An error occurred while processing your request. "
             "Please try again later."
         )
+
+
+@authorized_only
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle voice messages.
+    
+    Downloads the voice file, transcribes via Groq Whisper,
+    then routes the transcription through handle_message.
+    """
+    from groq import Groq
+    from config.settings import settings
+    
+    user_info = get_user_info(update)
+    logger.info(f"Processing voice message from {user_info['id']}")
+    
+    if not settings.GROQ_API_KEY:
+        await update.message.reply_text(
+            "❌ Voice transcription not configured. "
+            "Set GROQ_API_KEY in .env to enable."
+        )
+        return
+    
+    try:
+        # Show typing indicator
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action='typing'
+        )
+        
+        # Download voice file from Telegram
+        voice = update.message.voice
+        voice_file = await voice.get_file()
+        
+        # Save to temp file
+        temp_path = Path(f"D:/Gemini CLI/telegram_voice_{uuid.uuid4().hex[:8]}.ogg")
+        await voice_file.download_to_drive(temp_path)
+        
+        logger.info(f"Voice file downloaded: {temp_path} ({voice.duration}s)")
+        
+        try:
+            # Transcribe via Groq Whisper
+            client = Groq(api_key=settings.GROQ_API_KEY)
+            
+            with open(temp_path, "rb") as audio_file:
+                transcription = client.audio.transcriptions.create(
+                    file=audio_file,
+                    model="whisper-large-v3",
+                    language="en",
+                    temperature=0.0
+                )
+            
+            text = transcription.text.strip()
+            
+            # Console logging
+            logger.info(f"Voice transcription from {user_info['id']}: {text}")
+            
+            if not text:
+                await update.message.reply_text("🎤 Couldn't understand the audio. Try again?")
+                return
+            
+            # Show user the transcription
+            await update.message.reply_text(f"🎤 I heard: \"{text}\"")
+            
+            # Route through the same message processing pipeline
+            await _process_text_message(text, update, context)
+            
+        finally:
+            # Clean up temp file
+            if temp_path.exists():
+                temp_path.unlink()
+                
+    except Exception as e:
+        logger.error(f"Voice handler error: {e}")
+        await update.message.reply_text(f"❌ Error processing voice message: {str(e)}")
 
 
 @authorized_only

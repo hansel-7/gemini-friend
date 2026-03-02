@@ -22,6 +22,7 @@
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
 | 💰 **Expense Tracking** | Auto-detect credit card transactions via Gmail + manual input |
+| 🎤 **Voice Messages** | Voice-to-text via Groq Whisper — works with all features |
 | 💡 **Capabilities Manifest** | Bot self-awareness — proactively suggests relevant features |
 | 🔌 **Modular Automations** | Easy to add/remove features |
 
@@ -242,4 +243,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [python-telegram-bot](https://python-telegram-bot.org/) - Telegram Bot API wrapper
 - [Scrapling](https://github.com/D4Vinci/Scrapling) - Adaptive web scraping framework with anti-bot bypass
 - [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) - For tool integrations
+- [Groq](https://groq.com/) - Lightning-fast Whisper voice transcription
 
