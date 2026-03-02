@@ -56,7 +56,7 @@ Your proactive thought (or [NO_MESSAGE] if nothing to contribute):"""
         Args:
             conversation_file: Path to conversation history file (uses default if None)
         """
-        self.gemini = GeminiCLI()
+        self.gemini = GeminiCLI.get_instance()
         self.conversation_file = conversation_file
     
     async def generate_thought(self) -> Optional[str]:

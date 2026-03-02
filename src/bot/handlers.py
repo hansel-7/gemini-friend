@@ -21,7 +21,7 @@ from src.utils.conversation import conversation_history
 from src.scraper import scrape_url
 
 # Initialize Gemini CLI wrapper
-gemini = GeminiCLI()
+gemini = GeminiCLI.get_instance()
 
 # Task automation reference (set by main.py after loading automations)
 _tasks_automation = None

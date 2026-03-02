@@ -99,7 +99,7 @@ async def summarize_articles(articles: List[NewsArticle]) -> str:
     articles = articles[:30]
     
     # Use GeminiCLI wrapper
-    gemini = GeminiCLI()
+    gemini = GeminiCLI.get_instance()
     
     # Build the prompt with numbered articles (no URLs to keep it short)
     article_text = "\n\n".join([

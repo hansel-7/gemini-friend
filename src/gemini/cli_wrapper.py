@@ -62,6 +62,20 @@ class GeminiCLI:
     # Gemini CLI command - prefer local project install, then npx fallback
     _GEMINI_LOCAL_CMD = Path("node_modules/.bin/gemini.cmd").resolve()
     
+    # Singleton instance
+    _instance: 'GeminiCLI' = None
+    
+    @classmethod
+    def get_instance(cls) -> 'GeminiCLI':
+        """Get the singleton GeminiCLI instance.
+        
+        All consumers should use this instead of GeminiCLI() directly
+        to share one instance across the entire application.
+        """
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
     @classmethod
     def _get_gemini_cmd(cls) -> str:
         """Get the Gemini CLI command, preferring local project install."""
@@ -76,7 +90,7 @@ class GeminiCLI:
     
     def __init__(self):
         """Initialize the Gemini CLI wrapper."""
-        self.current_process: Optional[subprocess.Popen] = None
+        self._active_processes: set = set()
         self.timeout = settings.GEMINI_TIMEOUT
         self._persona: Optional[str] = None
         self._capabilities: Optional[str] = None
@@ -358,7 +372,7 @@ class GeminiCLI:
                 env=secure_env
             )
             
-            self.current_process = process
+            self._active_processes.add(process)
             
             try:
                 stdout, stderr = await asyncio.wait_for(
@@ -366,12 +380,16 @@ class GeminiCLI:
                     timeout=self.timeout
                 )
             except asyncio.TimeoutError:
-                self.cancel_current()
+                try:
+                    process.terminate()
+                except Exception:
+                    pass
+                self._active_processes.discard(process)
                 raise TimeoutError(
                     f"Gemini CLI did not respond within {self.timeout} seconds"
                 )
             
-            self.current_process = None
+            self._active_processes.discard(process)
             
             # Decode output
             output = stdout.decode('utf-8', errors='replace').strip()
@@ -447,12 +465,16 @@ class GeminiCLI:
         return output.strip()
     
     def cancel_current(self) -> None:
-        """Cancel the current running Gemini CLI process if any."""
-        if self.current_process:
+        """Cancel all active Gemini CLI processes."""
+        if not self._active_processes:
+            return
+        
+        count = len(self._active_processes)
+        for process in list(self._active_processes):
             try:
-                self.current_process.terminate()
-                logger.info("Terminated current Gemini CLI process")
+                process.terminate()
             except Exception as e:
                 logger.warning(f"Error terminating process: {e}")
-            finally:
-                self.current_process = None
+        
+        self._active_processes.clear()
+        logger.info(f"Terminated {count} active Gemini CLI process(es)")

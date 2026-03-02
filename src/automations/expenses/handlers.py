@@ -77,7 +77,7 @@ class ExpenseAutomation(BaseAutomation):
         self.manager = ExpenseManager(data_file=data_file)
         
         # Gemini CLI for parsing and categorizing
-        self.gemini = GeminiCLI()
+        self.gemini = GeminiCLI.get_instance()
         
         # Scanner for email alerts
         self.scanner = ExpenseScanner(

@@ -20,7 +20,7 @@ from src.utils.logger import logger
 
 
 # Prompt for Gemini to search Gmail
-GMAIL_SEARCH_PROMPT = """Search Gmail for emails from "{sender}" received in the last 70 minutes that are unread.
+GMAIL_SEARCH_PROMPT = """Search Gmail for emails from "{sender}" received in the last 24 hours that are unread.
 
 For each email found, return the following in valid JSON format:
 {{
@@ -247,6 +247,11 @@ class ExpenseScanner:
             
             try:
                 date = datetime.fromisoformat(date_str) if date_str else datetime.now()
+                # If time is midnight (00:00), the email likely didn't have a time —
+                # use current time on the same date for a more useful timestamp
+                if date.hour == 0 and date.minute == 0 and date.second == 0:
+                    now = datetime.now()
+                    date = date.replace(hour=now.hour, minute=now.minute, second=now.second)
             except ValueError:
                 date = datetime.now()
             

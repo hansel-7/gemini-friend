@@ -48,7 +48,7 @@ Remember: Only suggest things that would genuinely help personalize future inter
 
     def __init__(self):
         """Initialize the enricher."""
-        self.gemini = GeminiCLI()
+        self.gemini = GeminiCLI.get_instance()
     
     def get_current_persona(self) -> str:
         """Read the current persona file."""

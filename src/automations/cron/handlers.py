@@ -103,7 +103,7 @@ class CronAutomation(BaseAutomation):
         )
         
         # Gemini CLI instance for executing job prompts
-        self.gemini = GeminiCLI()
+        self.gemini = GeminiCLI.get_instance()
         
         # Get user_id from settings
         self.user_id = next(iter(settings.ALLOWED_USER_IDS)) if settings.ALLOWED_USER_IDS else None
