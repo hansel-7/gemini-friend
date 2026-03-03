@@ -27,6 +27,8 @@ gemini = GeminiCLI.get_instance()
 _tasks_automation = None
 # Cron automation reference (set by main.py after loading automations)
 _cron_automation = None
+# Brain automation reference (set by main.py after loading automations)
+_brain_automation = None
 
 
 def set_tasks_automation(automation) -> None:
@@ -49,6 +51,17 @@ def set_cron_automation(automation) -> None:
     _cron_automation = automation
     if automation:
         logger.info("Natural language cron schedule detection enabled")
+
+
+def set_brain_automation(automation) -> None:
+    """Set the brain automation instance for event-driven triggers.
+    
+    Called by main.py after loading automations.
+    """
+    global _brain_automation
+    _brain_automation = automation
+    if automation:
+        logger.info("Brain agent event triggers enabled")
 
 
 @authorized_only
@@ -528,6 +541,13 @@ async def _process_text_message(user_message: str, update: Update, context: Cont
     
     # Save user message to conversation history
     conversation_history.add_message('USER', user_message, user_info['id'])
+    
+    # Notify brain agent of user message (event trigger)
+    if _brain_automation:
+        try:
+            await _brain_automation.on_user_message(user_message)
+        except Exception as e:
+            logger.debug(f"Brain event trigger error: {e}")
     
     # Send typing action to show the bot is processing
     await context.bot.send_chat_action(

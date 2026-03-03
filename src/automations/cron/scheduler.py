@@ -140,8 +140,11 @@ class CronScheduler:
         response = await self.on_execute(job)
         
         if response:
-            await self.on_message(job, response)
-            logger.info(f"Cron: Job #{job.job_id} completed and sent to user")
+            try:
+                await self.on_message(job, response)
+                logger.info(f"Cron: Job #{job.job_id} completed and sent to user")
+            except Exception as e:
+                logger.error(f"Cron: Job #{job.job_id} executed but failed to deliver: {e}")
         else:
             logger.warning(f"Cron: Job #{job.job_id} returned no response")
     

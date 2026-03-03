@@ -32,7 +32,8 @@ from src.bot.handlers import (
     handle_document,
     error_handler,
     set_tasks_automation,
-    set_cron_automation
+    set_cron_automation,
+    set_brain_automation
 )
 from src.automations import load_automations, start_automations, stop_automations
 from src.utils.logger import logger
@@ -129,12 +130,23 @@ def main() -> None:
     _loaded_automations = load_automations(application)
     logger.info(f"Loaded {len(_loaded_automations)} automation(s)")
     
-    # Wire up automations for natural language detection
+    # Wire up automations for natural language detection and event triggers
+    tasks_manager = None
+    brain_automation = None
+    
     for automation in _loaded_automations:
         if automation.name == "tasks":
             set_tasks_automation(automation)
+            tasks_manager = automation.manager if hasattr(automation, 'manager') else None
         elif automation.name == "cron":
             set_cron_automation(automation)
+        elif automation.name == "brain":
+            brain_automation = automation
+            set_brain_automation(automation)
+    
+    # Give the brain agent access to the task list
+    if brain_automation and tasks_manager:
+        brain_automation.set_task_manager(tasks_manager)
     
     # Start the bot
     logger.info("Bot is now running! Press Ctrl+C to stop.")

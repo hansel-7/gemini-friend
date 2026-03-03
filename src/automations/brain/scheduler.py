@@ -1,95 +1,97 @@
-"""Brain scheduler for proactive thinking.
+"""Brain scheduler — autonomous agent version.
 
-Handles periodic thinking cycles with quiet hours and rate limiting.
+Replaces the fixed-interval scheduler with adaptive timing:
+- Busy (has backlog) → check every 30 min
+- Idle (empty backlog) → check every 4 hours
+- Event-triggered → can be bumped to fire sooner
 """
 
-from datetime import datetime, timedelta
-from typing import Callable, Optional, Awaitable
+from datetime import datetime
+from typing import Callable, Optional, Awaitable, Tuple
 import asyncio
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
+from src.automations.brain.agent_state import AgentState
 from src.utils.logger import logger
 
 
-class BrainScheduler:
-    """Scheduler for proactive thinking cycles.
+class AgentScheduler:
+    """Adaptive scheduler for the autonomous agent.
     
     Features:
-    - Configurable check interval
-    - Quiet hours (no messages during sleep time)
-    - Rate limiting (minimum gap between messages)
+    - Adaptive cycle timing (busy vs idle)
+    - Quiet hours
+    - Event-driven bumping (observations trigger earlier cycles)
     """
     
     def __init__(
         self,
-        check_interval_hours: float = 2,
-        quiet_hours_start: float = 23.5,  # 11:30 PM
-        quiet_hours_end: float = 7,       # 7:00 AM
-        min_gap_hours: float = 2,
-        on_think: Optional[Callable[[], Awaitable[Optional[str]]]] = None,
+        state: AgentState,
+        min_cycle_minutes: int = 30,
+        max_cycle_minutes: int = 240,
+        quiet_hours_start: float = 23.5,
+        quiet_hours_end: float = 7,
+        on_cycle: Optional[Callable[[], Awaitable[Optional[Tuple[Optional[str], bool]]]]] = None,
         on_message: Optional[Callable[[str], Awaitable[None]]] = None
     ):
         """Initialize the scheduler.
         
         Args:
-            check_interval_hours: Hours between thinking cycles
-            quiet_hours_start: Hour to start quiet period (decimal, e.g. 23.5 = 11:30 PM)
+            state: The agent's persistent state
+            min_cycle_minutes: Minutes between cycles when busy
+            max_cycle_minutes: Minutes between cycles when idle
+            quiet_hours_start: Hour to start quiet period (decimal)
             quiet_hours_end: Hour to end quiet period
-            min_gap_hours: Minimum hours between proactive messages
-            on_think: Callback that generates a thought (returns message or None)
-            on_message: Callback to send the message
+            on_cycle: Callback that runs a full triage+work cycle, returns (report, is_done)
+            on_message: Callback to send a message to the user
         """
-        self.check_interval_seconds = int(check_interval_hours * 3600)
+        self.state = state
+        self.min_cycle_minutes = min_cycle_minutes
+        self.max_cycle_minutes = max_cycle_minutes
         self.quiet_hours_start = quiet_hours_start
         self.quiet_hours_end = quiet_hours_end
-        self.min_gap_seconds = int(min_gap_hours * 3600)
-        self.on_think = on_think
+        self.on_cycle = on_cycle
         self.on_message = on_message
         
         self._running = False
         self._task: Optional[asyncio.Task] = None
-        self._last_message_time: Optional[datetime] = None
     
     def _is_quiet_hours(self) -> bool:
         """Check if current time is within quiet hours."""
         now = datetime.now()
         current_hour = now.hour + now.minute / 60
         
-        # Handle overnight quiet hours (e.g., 23.5 to 7)
         if self.quiet_hours_start > self.quiet_hours_end:
-            # Quiet if after start OR before end
             return current_hour >= self.quiet_hours_start or current_hour < self.quiet_hours_end
         else:
-            # Normal range
             return self.quiet_hours_start <= current_hour < self.quiet_hours_end
     
-    def _can_send_message(self) -> bool:
-        """Check if enough time has passed since last message."""
-        if self._last_message_time is None:
-            return True
-        
-        elapsed = (datetime.now() - self._last_message_time).total_seconds()
-        return elapsed >= self.min_gap_seconds
-    
     async def start(self) -> None:
-        """Start the thinking scheduler."""
+        """Start the agent scheduler."""
         if self._running:
             return
         
         self._running = True
-        self._task = asyncio.create_task(self._think_loop())
+        self._task = asyncio.create_task(self._agent_loop())
+        
+        # Set initial cycle if none scheduled
+        if not self.state.next_cycle_at:
+            # First run: wait a bit before the first cycle
+            self.state.set_next_cycle(5)  # 5 minutes after boot
+        
+        active = len(self.state.get_active_tasks())
         logger.info(
-            f"Brain scheduler started - "
-            f"Check every {self.check_interval_seconds/3600:.1f}h, "
+            f"Agent scheduler started — "
+            f"Cycle range: {self.min_cycle_minutes}-{self.max_cycle_minutes}min, "
             f"Quiet hours {self.quiet_hours_start:.1f}-{self.quiet_hours_end:.1f}, "
-            f"Min gap {self.min_gap_seconds/3600:.1f}h"
+            f"{active} active backlog items"
         )
     
     async def stop(self) -> None:
-        """Stop the thinking scheduler."""
+        """Stop the agent scheduler."""
         self._running = False
         
         if self._task:
@@ -100,49 +102,77 @@ class BrainScheduler:
                 pass
             self._task = None
         
-        logger.info("Brain scheduler stopped")
+        logger.info("Agent scheduler stopped")
     
-    async def _think_loop(self) -> None:
-        """Main loop for periodic thinking."""
-        # Wait for the full interval before first thinking cycle
-        # This prevents immediate message blast on bot restart
-        logger.debug(f"Brain: Waiting {self.check_interval_seconds/3600:.1f}h before first thinking cycle")
-        await asyncio.sleep(self.check_interval_seconds)
-        
+    async def _agent_loop(self) -> None:
+        """Main loop — checks every 60s if it's time for a cycle."""
         while self._running:
             try:
-                await self._execute_think_cycle()
+                # Check every 60 seconds if it's time
+                await asyncio.sleep(60)
+                
+                if not self.state.is_cycle_due():
+                    continue
+                
+                if self._is_quiet_hours():
+                    logger.debug("Agent: Skipping cycle — quiet hours")
+                    # Schedule next check for after quiet hours
+                    self.state.set_next_cycle(self.max_cycle_minutes)
+                    continue
+                
+                await self._execute_cycle()
+                
+            except asyncio.CancelledError:
+                raise
             except Exception as e:
-                logger.error(f"Error in brain think loop: {e}")
-            
-            await asyncio.sleep(self.check_interval_seconds)
+                logger.error(f"Agent loop error: {e}")
+                # Don't crash the loop, wait and retry
+                await asyncio.sleep(60)
     
-    async def _execute_think_cycle(self) -> None:
-        """Execute a single thinking cycle."""
-        # Check quiet hours
-        if self._is_quiet_hours():
-            logger.debug("Brain: Skipping - quiet hours")
+    async def _execute_cycle(self) -> None:
+        """Execute a single agent cycle (triage → work → schedule next)."""
+        logger.info(f"Agent: Starting cycle #{self.state.cycle_count + 1}...")
+        
+        if not self.on_cycle:
             return
         
-        # Check rate limiting
-        if not self._can_send_message():
-            logger.debug("Brain: Skipping - rate limited")
-            return
-        
-        # No callbacks configured
-        if not self.on_think or not self.on_message:
-            return
-        
-        # Generate a thought
-        logger.info("Brain: Starting thinking cycle...")
-        thought = await self.on_think()
-        
-        if thought:
-            logger.info("Brain: Generated proactive thought, sending...")
-            await self.on_message(thought)
-            self._last_message_time = datetime.now()
-        else:
-            logger.info("Brain: No thought to share this cycle")
+        try:
+            # Run the full triage + work cycle
+            result = await self.on_cycle()
+            
+            # Mark cycle as complete
+            self.state.mark_cycle_complete()
+            
+            # Handle result
+            report = None
+            had_work = False
+            
+            if result:
+                report, _ = result
+                had_work = True
+            
+            # Send report to user if there's something to share
+            if report and self.on_message:
+                await self.on_message(report)
+                logger.info(f"Agent: Sent report to user ({len(report)} chars)")
+            
+            # Adaptive scheduling: busy → short wait, idle → long wait
+            if had_work or self.state.get_active_tasks():
+                next_minutes = self.min_cycle_minutes
+                logger.info(f"Agent: Has work — next cycle in {next_minutes}min")
+            else:
+                next_minutes = self.max_cycle_minutes
+                logger.info(f"Agent: Idle — next cycle in {next_minutes}min")
+            
+            self.state.set_next_cycle(next_minutes)
+            
+            # Clear processed observations
+            self.state.clear_observations()
+            
+        except Exception as e:
+            logger.error(f"Agent cycle error: {e}")
+            # On error, schedule a retry in a moderate time
+            self.state.set_next_cycle(self.min_cycle_minutes * 2)
     
     @property
     def is_running(self) -> bool:

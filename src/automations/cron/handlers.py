@@ -449,53 +449,80 @@ class CronAutomation(BaseAutomation):
             logger.error(f"Cron: Error executing job #{job.job_id}: {e}")
             return f"❌ Cron job error: {str(e)}"
     
+    async def _send_telegram_message(self, job: CronJob, header: str, message: str) -> None:
+        """Send a cron job message via Telegram (single attempt).
+        
+        Raises on failure so callers can retry.
+        """
+        full_message = header + message
+        
+        # Handle long messages (Telegram limit ~4096 chars)
+        if len(full_message) <= 4096:
+            try:
+                await self.application.bot.send_message(
+                    chat_id=self.user_id,
+                    text=full_message,
+                    parse_mode='Markdown'
+                )
+            except Exception:
+                # Markdown parse failed — send as plain text
+                await self.application.bot.send_message(
+                    chat_id=self.user_id,
+                    text=f"⏰ Scheduled: {job.label}\n\n{message}"
+                )
+        else:
+            # Send header, then chunk the response
+            await self.application.bot.send_message(
+                chat_id=self.user_id,
+                text=header,
+                parse_mode='Markdown'
+            )
+            # Send response in chunks (plain text to avoid parse errors)
+            for i in range(0, len(message), 4000):
+                chunk = message[i:i+4000]
+                await self.application.bot.send_message(
+                    chat_id=self.user_id,
+                    text=chunk
+                )
+    
     async def _on_message(self, job: CronJob, message: str) -> None:
-        """Send a cron job's result to the user via Telegram."""
+        """Send a cron job's result to the user via Telegram with retry."""
         if not self.user_id:
             logger.error("Cron: No user ID configured")
             return
         
+        MAX_RETRIES = 3
+        RETRY_DELAYS = [5, 10, 20]  # seconds
+        
+        header = f"⏰ *Scheduled: {job.label}*\n\n"
+        
+        # First attempt
         try:
-            header = f"⏰ *Scheduled: {job.label}*\n\n"
-            full_message = header + message
-            
-            # Handle long messages (Telegram limit ~4096 chars)
-            if len(full_message) <= 4096:
-                try:
-                    await self.application.bot.send_message(
-                        chat_id=self.user_id,
-                        text=full_message,
-                        parse_mode='Markdown'
-                    )
-                except Exception:
-                    # Markdown parse failed — send as plain text
-                    await self.application.bot.send_message(
-                        chat_id=self.user_id,
-                        text=f"⏰ Scheduled: {job.label}\n\n{message}"
-                    )
-            else:
-                # Send header, then chunk the response
-                await self.application.bot.send_message(
-                    chat_id=self.user_id,
-                    text=header,
-                    parse_mode='Markdown'
-                )
-                # Send response in chunks (plain text to avoid parse errors)
-                for i in range(0, len(message), 4000):
-                    chunk = message[i:i+4000]
-                    await self.application.bot.send_message(
-                        chat_id=self.user_id,
-                        text=chunk
-                    )
-            
-            # Log to conversation history
-            conversation_history.add_message(
-                'ASSISTANT',
-                f"[Cron #{job.job_id}: {job.label}] {message}"
-            )
-            
+            await self._send_telegram_message(job, header, message)
         except Exception as e:
-            logger.error(f"Cron: Error sending message for job #{job.job_id}: {e}")
+            logger.warning(f"Cron: Initial send failed for job #{job.job_id}: {e}")
+            
+            # Retry with exponential backoff
+            for attempt in range(MAX_RETRIES):
+                delay = RETRY_DELAYS[attempt]
+                logger.info(f"Cron: Retry {attempt + 1}/{MAX_RETRIES} for job #{job.job_id} in {delay}s...")
+                await asyncio.sleep(delay)
+                try:
+                    await self._send_telegram_message(job, header, message)
+                    logger.info(f"Cron: Retry {attempt + 1} succeeded for job #{job.job_id}")
+                    break
+                except Exception as retry_err:
+                    logger.warning(f"Cron: Retry {attempt + 1} failed for job #{job.job_id}: {retry_err}")
+            else:
+                # All retries exhausted
+                logger.error(f"Cron: All {MAX_RETRIES} retries exhausted for job #{job.job_id}: {e}")
+                raise
+        
+        # Log to conversation history
+        conversation_history.add_message(
+            'ASSISTANT',
+            f"[Cron #{job.job_id}: {job.label}] {message}"
+        )
     
     # --- Status ---
     
