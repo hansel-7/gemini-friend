@@ -1,6 +1,6 @@
 # 🤖 Personal Assistant Telegram Bot
 
-> A secure, AI-powered personal assistant that lives in your Telegram. Powered by Gemini CLI with MCP integrations for file management, web browsing, and Google Workspace.
+> A secure, AI-powered personal assistant that lives in your Telegram. Features an autonomous agent brain with persistent memory, adaptive scheduling, and proactive research capabilities. Powered by Gemini CLI with MCP integrations.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,7 +18,7 @@
 | 📅 **Calendar & Email** | Google Calendar and Gmail integration |
 | ✅ **Task Management** | Checklist with automatic reminders |
 | ⏰ **Cron Jobs** | Dynamic scheduled jobs via natural language or cron expressions |
-| 🧠 **AI Brain** | Proactive engagement and idea generation |
+| 🧠 **Autonomous Agent** | Goal-driven brain with persistent backlog, adaptive scheduling (30min–4h), and two-phase triage→work cycles |
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
 | 💰 **Expense Tracking** | Auto-detect credit card transactions via Gmail + manual input |
@@ -146,10 +146,12 @@ Automations are modular features that can be enabled/disabled in `config/automat
     "enabled": true,
     "reminder_check_interval": 60
   },
-  "news": {
+  "brain": {
     "enabled": true,
-    "digest_hour": 7,
-    "digest_minute": 0
+    "min_cycle_minutes": 30,
+    "max_cycle_minutes": 240,
+    "quiet_hours_start": 23.5,
+    "quiet_hours_end": 7
   },
   "cron": {
     "enabled": true,
@@ -167,10 +169,21 @@ Automations are modular features that can be enabled/disabled in `config/automat
 
 ### Available Automations
 - **tasks** - Task/checklist management with reminders
+- **brain** - Autonomous AI agent with persistent backlog, adaptive scheduling, and event-driven triggers
 - **cron** - Dynamic scheduled jobs (natural language or cron expressions, fires via Gemini CLI with MCP)
 - **news** - Daily gaming news digest with AI summarization
-- **brain** - Proactive AI engagement
 - **expenses** - Expense tracking with auto Gmail scanning for credit card alerts
+
+### Autonomous Agent (Brain v3)
+
+The brain automation is an autonomous goal-driven agent that:
+- **Triage phase** — Reviews its backlog, user tasks, observations, and conversation history to decide what to work on
+- **Work phase** — Executes one step of research/analysis using MCP tools, saves notes, and reports findings
+- **Event-driven** — User messages are recorded as observations and bump the next cycle
+- **Task-aware** — Reads pending tasks from `/task` and proactively helps with deadlines
+- **Adaptive scheduling** — 30min cycles when busy, 4h when idle (configurable)
+- **Persistent state** — Backlog, observations, and cycle info saved to `agent_state.json`
+- **Safety guardrails** — Cannot modify its own codebase, only create standalone scripts
 
 ### Adding New Automations
 1. Create folder: `src/automations/my_feature/`
@@ -224,13 +237,15 @@ personal_assistant/
     │   │   ├── manager.py   # Expense CRUD + JSON storage
     │   │   ├── scanner.py   # Gmail scanner for CC alerts
     │   │   └── handlers.py  # Commands + automation class
-    │   └── brain/          # AI Brain (proactive engagement)
-    │       ├── thinker.py  # Thought generation
-    │       └── scheduler.py # Scheduling logic
-    ├── scraper.py          # Web scraping (Scrapling)
+    │   └── brain/           # Autonomous AI Agent
+    │       ├── agent_state.py # Persistent state (backlog, observations)
+    │       ├── thinker.py   # Two-phase triage + work prompts
+    │       ├── scheduler.py # Adaptive scheduling (30min–4h)
+    │       └── handlers.py  # Event triggers + TaskManager integration
+    ├── scraper.py           # Web scraping (Scrapling)
     └── utils/
-        ├── logger.py       # Logging
-        └── conversation.py # Context management
+        ├── logger.py        # Logging
+        └── conversation.py  # Context management
 ```
 
 ## 📄 License
