@@ -191,6 +191,111 @@ The brain automation is an autonomous goal-driven agent that:
 3. Add to `config/automations.json`
 4. Restart bot
 
+## 🐧 Deploying on Ubuntu Server (Headless)
+
+### Initial Setup
+
+```bash
+# Install dependencies
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3 python3-pip python3-venv git curl
+
+# Install Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install Gemini CLI globally
+sudo npm install -g @google/gemini-cli
+
+# Clone and set up the bot
+git clone https://github.com/hansel-7/gemini-friend.git personal_assistant
+cd personal_assistant
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Install Playwright system dependencies
+playwright install chromium
+playwright install-deps
+
+# Configure environment
+cp .env.example .env
+nano .env  # Set GEMINI_CLI_COMMAND=gemini, DATA_DIR, etc.
+```
+
+### Google Workspace Extension (Headless Auth)
+
+On a headless server, the Google Workspace extension can't open a browser for OAuth. Use the **headless login script** instead:
+
+```bash
+# Clone the extension source (includes headless login tool)
+cd ~
+git clone https://github.com/gemini-cli-extensions/workspace.git workspace-src
+cd workspace-src
+npm install
+
+# Run headless auth
+cd workspace-server
+node dist/headless-login.js
+```
+
+This prints a **Google OAuth URL**. Open it in any browser (laptop, phone), sign in, and the browser shows a JSON block. Paste that JSON back into the terminal.
+
+Then copy credentials to the installed extension:
+
+```bash
+cp ~/workspace-src/gemini-cli-workspace-token.json ~/.gemini/extensions/google-workspace/
+```
+
+> **Note:** If the extension isn't installed yet, run `gemini` once first, then install it with:
+> `gemini extensions install https://github.com/gemini-cli-extensions/workspace`
+
+### Running as a systemd Service (24/7)
+
+1. Create the service file:
+   ```bash
+   sudo nano /etc/systemd/system/personal-assistant.service
+   ```
+
+   ```ini
+   [Unit]
+   Description=Personal Assistant Telegram Bot
+   After=network-online.target
+   Wants=network-online.target
+
+   [Service]
+   Type=simple
+   User=<your-username>
+   WorkingDirectory=/home/<your-username>/personal_assistant
+   ExecStart=/home/<your-username>/personal_assistant/venv/bin/python3 src/main.py
+   Restart=always
+   RestartSec=10
+   Environment=PATH=/usr/local/bin:/usr/bin:/home/<your-username>/.npm-global/bin
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+2. Enable and start:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable personal-assistant
+   sudo systemctl start personal-assistant
+   ```
+
+3. Useful commands:
+   ```bash
+   sudo systemctl status personal-assistant       # Check status
+   sudo journalctl -u personal-assistant -f        # Stream live logs
+   sudo systemctl restart personal-assistant       # Restart after code updates
+   ```
+
+4. Update workflow:
+   ```bash
+   cd ~/personal_assistant && git pull
+   sudo systemctl restart personal-assistant
+   ```
+
 ## Security
 
 - All handlers use the `@authorized_only` decorator
