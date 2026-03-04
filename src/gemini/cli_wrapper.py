@@ -78,11 +78,17 @@ class GeminiCLI:
     
     @classmethod
     def _get_gemini_cmd(cls) -> str:
-        """Get the Gemini CLI command, preferring local project install."""
-        # 1. Try local node_modules (best for portability/reproducibility)
+        """Get the Gemini CLI command, preferring env var, then local install."""
+        # 1. Use GEMINI_CLI_COMMAND from .env if set (e.g. 'gemini' on Ubuntu)
+        env_cmd = settings.GEMINI_CLI_COMMAND
+        if env_cmd and env_cmd != 'npx @google/gemini-cli':
+            # Check if the command exists on PATH
+            if shutil.which(env_cmd):
+                return env_cmd
+        # 2. Try local node_modules (best for portability/reproducibility)
         if cls._GEMINI_LOCAL_CMD.exists():
             return f'"{cls._GEMINI_LOCAL_CMD}"'
-        # 2. Fallback to npx
+        # 3. Fallback to npx
         return 'npx @google/gemini-cli'
     
     # Persona configuration file
