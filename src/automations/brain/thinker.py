@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from typing import Optional, Tuple
 from src.automations.brain.agent_state import AgentState
+from src.automations.brain.learnings import AgentLearnings
 from src.gemini.cli_wrapper import GeminiCLI
 from src.utils.conversation import conversation_history
 from src.utils.logger import logger
@@ -51,7 +52,7 @@ IMPORTANT SAFETY RULES:
 - You CAN create standalone scripts in the workspace folder for the user.
 - You CAN read and edit data files (tasks.json, expenses.json, etc.).
 
-{state_summary}
+{learnings_section}{state_summary}
 
 {user_tasks_section}
 
@@ -90,31 +91,35 @@ IMPORTANT SAFETY RULES:
 - You CAN create standalone helper scripts in the workspace folder.
 - You CAN read and edit data files (tasks.json, expenses.json, etc.).
 
-After doing the work, respond with ONLY valid JSON:
+{learnings_section}After doing the work, respond with ONLY valid JSON:
 {{
     "findings": "<what you found or accomplished in this step>",
     "should_report": true | false,
     "report": "<message to send to the user, if should_report=true. Be concise and practical.>",
     "status": "in_progress" | "done",
-    "reasoning": "<why you chose this status>"
+    "reasoning": "<why you chose this status>",
+    "lesson": "<optional — a reusable insight you learned from this work that would help in future tasks>"
 }}
 
 Set should_report=true only if you have something genuinely useful to share.
 Set status="done" if the task is complete or you've done all you can.
 Keep reports conversational and natural — like a helpful assistant sharing something they found.
+Only include "lesson" if you genuinely discovered something reusable — don't force it.
 
 === CONVERSATION HISTORY (for context) ===
 {context}
 === END HISTORY ==="""
 
-    def __init__(self, state: AgentState, conversation_file: Optional[str] = None):
+    def __init__(self, state: AgentState, learnings: AgentLearnings = None, conversation_file: Optional[str] = None):
         """Initialize the thinker.
         
         Args:
             state: The agent's persistent state
+            learnings: The agent's persistent learnings store
             conversation_file: Path to conversation history file
         """
         self.state = state
+        self.learnings = learnings or AgentLearnings()
         self.gemini = GeminiCLI.get_instance()
         self.conversation_file = conversation_file
     
@@ -151,9 +156,15 @@ Keep reports conversational and natural — like a helpful assistant sharing som
             else:
                 user_tasks_section = "=== USER'S PENDING TASKS ===\n(none)"
             
+            # Build learnings section
+            learnings_section = self.learnings.get_lessons_for_prompt()
+            if learnings_section:
+                learnings_section += "\n"
+            
             prompt = self.TRIAGE_PROMPT.format(
                 persona_section=persona_section,
                 capabilities_section=capabilities_section,
+                learnings_section=learnings_section,
                 state_summary=self.state.get_state_summary(),
                 user_tasks_section=user_tasks_section,
                 context=context
@@ -282,9 +293,15 @@ Keep reports conversational and natural — like a helpful assistant sharing som
             if task.notes:
                 task_notes = "\n".join(f"- {note}" for note in task.notes)
             
+            # Build learnings section
+            learnings_section = self.learnings.get_lessons_for_prompt()
+            if learnings_section:
+                learnings_section += "\n"
+            
             prompt = self.WORK_PROMPT.format(
                 persona_section=persona_section,
                 capabilities_section=capabilities_section,
+                learnings_section=learnings_section,
                 task_description=task.task,
                 task_notes=task_notes,
                 context=context
@@ -309,10 +326,19 @@ Keep reports conversational and natural — like a helpful assistant sharing som
             should_report = parsed.get("should_report", False)
             report = parsed.get("report", "")
             status = parsed.get("status", "in_progress")
+            lesson = parsed.get("lesson", "")
             
             # Save findings to task notes
             if findings:
                 self.state.update_task(task_id, note=findings[:500])
+            
+            # Save lesson if the agent learned something
+            if lesson and len(lesson.strip()) > 10:
+                self.learnings.add_lesson(
+                    text=lesson.strip(),
+                    source_task=task.task[:100],
+                    cycle=self.state.cycle_count
+                )
             
             # Update status
             if status == "done":

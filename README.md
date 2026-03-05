@@ -18,7 +18,7 @@
 | 📅 **Calendar & Email** | Google Calendar and Gmail integration |
 | ✅ **Task Management** | Checklist with automatic reminders |
 | ⏰ **Cron Jobs** | Dynamic scheduled jobs via natural language or cron expressions |
-| 🧠 **Autonomous Agent** | Goal-driven brain with persistent backlog, adaptive scheduling (30min–4h), and two-phase triage→work cycles |
+| 🧠 **Autonomous Agent** | Goal-driven brain with persistent backlog, adaptive scheduling (30min–4h), two-phase triage→work cycles, and self-improving prompt memory |
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
 | 💰 **Expense Tracking** | Auto-detect credit card transactions via Gmail + manual input |
@@ -183,6 +183,7 @@ The brain automation is an autonomous goal-driven agent that:
 - **Task-aware** — Reads pending tasks from `/task` and proactively helps with deadlines
 - **Adaptive scheduling** — 30min cycles when busy, 4h when idle (configurable)
 - **Persistent state** — Backlog, observations, and cycle info saved to `agent_state.json`
+- **Self-improving memory** — Agent accumulates lessons from work cycles into `agent_learnings.json`, injected into future prompts. Auto-consolidates when >15 lessons via Gemini
 - **Safety guardrails** — Cannot modify its own codebase, only create standalone scripts
 
 ### Adding New Automations
@@ -344,6 +345,7 @@ personal_assistant/
     │   │   └── handlers.py  # Commands + automation class
     │   └── brain/           # Autonomous AI Agent
     │       ├── agent_state.py # Persistent state (backlog, observations)
+    │       ├── learnings.py  # Self-improving prompt memory
     │       ├── thinker.py   # Two-phase triage + work prompts
     │       ├── scheduler.py # Adaptive scheduling (30min–4h)
     │       └── handlers.py  # Event triggers + TaskManager integration

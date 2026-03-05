@@ -17,6 +17,7 @@ from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 from src.automations.base import BaseAutomation
 from src.automations.brain.agent_state import AgentState
+from src.automations.brain.learnings import AgentLearnings
 from src.automations.brain.scheduler import AgentScheduler
 from src.automations.brain.thinker import AgentThinker
 from src.automations.brain.persona_enricher import PersonaEnricher
@@ -54,9 +55,16 @@ class BrainAutomation(BaseAutomation):
             state_file = str(settings.DATA_DIR / state_file)
         self.state = AgentState(state_file=state_file)
         
+        # Initialize learnings store (persistent)
+        learnings_file = config.get('learnings_file', 'agent_learnings.json')
+        if not Path(learnings_file).is_absolute():
+            learnings_file = str(settings.DATA_DIR / learnings_file)
+        self.learnings = AgentLearnings(learnings_file=learnings_file)
+        
         # Initialize thinker
         self.thinker = AgentThinker(
             state=self.state,
+            learnings=self.learnings,
             conversation_file=config.get('conversation_file')
         )
         
@@ -183,6 +191,11 @@ class BrainAutomation(BaseAutomation):
         
         # Phase 2: Work — execute one step
         report, is_done = await self.thinker.run_work(task_id)
+        
+        # Check if learnings need consolidation
+        if self.learnings.needs_consolidation():
+            logger.info("Agent: Triggering learnings consolidation...")
+            await self.learnings.consolidate(self.thinker.gemini)
         
         return (report, is_done)
     
@@ -346,6 +359,7 @@ class BrainAutomation(BaseAutomation):
             "cycle_count": self.state.cycle_count,
             "backlog_items": len(active_tasks),
             "observations": len(self.state.observations),
+            "learnings_count": self.learnings.get_lesson_count(),
             "next_cycle": self.state.next_cycle_at.isoformat() if self.state.next_cycle_at else None,
             "pending_persona_update": self._pending_persona_update is not None,
             "persona_update_schedule": f"Day {self.persona_day}, Hour {self.persona_hour}"
