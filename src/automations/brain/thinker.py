@@ -45,6 +45,7 @@ Prioritize:
 - Stale user tasks you can help with (research, prepare, suggest)
 
 Do NOT create a task for trivial things (greetings, acknowledgments, simple questions).
+Do NOT create a task for something the user asked that was already answered in the conversation history.
 Do NOT repeat work you've already done (check your backlog notes).
 
 IMPORTANT SAFETY RULES:
