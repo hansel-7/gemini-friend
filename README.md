@@ -22,6 +22,7 @@
 | 📰 **News Digest** | Daily gaming industry news summaries |
 | 🕷️ **Web Scraping** | Scrape any URL with anti-bot bypass, powered by [Scrapling](https://github.com/D4Vinci/Scrapling) |
 | 💰 **Expense Tracking** | Auto-detect credit card transactions via Gmail + manual input |
+| 🏋️ **Exercise Tracker** | Conversational workout logger — tracks areas, exercises, sets, reps & weights to JSON |
 | 🎤 **Voice Messages** | Voice-to-text via Groq Whisper — works with all features |
 | 💡 **Capabilities Manifest** | Bot self-awareness — proactively suggests relevant features |
 | 🔌 **Modular Automations** | Easy to add/remove features |
@@ -130,6 +131,13 @@ This allows the bot to proactively suggest actions (e.g., *"Want me to set a rem
 - `/delexpense <id>` - Delete an expense
 - Credit card transactions from UOB are auto-detected hourly via Gmail scanning
 
+### Exercise Commands
+- `/exercise` - Start a workout session
+- `/next` - Finish current exercise, start next one (shows summary)
+- `/finish` - End workout and save to JSON
+- `/workouts` - View recent workout history
+- During a session, text messages bypass Gemini and go directly to the exercise handler
+
 ### Context Commands
 - `/context` - Check context window usage
 - `/summarize` - Summarize conversation history
@@ -163,6 +171,10 @@ Automations are modular features that can be enabled/disabled in `config/automat
     "enabled": true,
     "scan_interval_minutes": 60,
     "alert_sender_email": "unialerts@uobgroup.com"
+  },
+  "exercise": {
+    "enabled": true,
+    "data_file": "workouts.json"
   }
 }
 ```
@@ -173,6 +185,7 @@ Automations are modular features that can be enabled/disabled in `config/automat
 - **cron** - Dynamic scheduled jobs (natural language or cron expressions, fires via Gemini CLI with MCP)
 - **news** - Daily gaming news digest with AI summarization
 - **expenses** - Expense tracking with auto Gmail scanning for credit card alerts
+- **exercise** - Workout/exercise tracker with conversational set logging
 
 ### Autonomous Agent (Brain v3)
 
@@ -343,6 +356,9 @@ personal_assistant/
     │   │   ├── manager.py   # Expense CRUD + JSON storage
     │   │   ├── scanner.py   # Gmail scanner for CC alerts
     │   │   └── handlers.py  # Commands + automation class
+    │   ├── exercise/        # Workout tracker
+    │   │   ├── manager.py   # Workout JSON persistence
+    │   │   └── handlers.py  # Session state + commands
     │   └── brain/           # Autonomous AI Agent
     │       ├── agent_state.py # Persistent state (backlog, observations)
     │       ├── learnings.py  # Self-improving prompt memory

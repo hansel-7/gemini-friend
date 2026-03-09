@@ -147,6 +147,25 @@
             ]
         },
         {
+            "name": "Exercise Tracking",
+            "description": "Log workouts with a conversational flow. Track muscle groups, exercises, sets, reps, and weights. Data is stored in workouts.json — you can read this file to answer natural language questions about workout history.",
+            "commands": [
+                "/exercise",
+                "/workouts"
+            ],
+            "natural_language": false,
+            "triggers": [
+                "user mentions working out or going to the gym",
+                "user talks about exercises, sets, or reps",
+                "user asks about their workout history",
+                "user mentions fitness or training"
+            ],
+            "examples": [
+                "Heading to the gym? Use /exercise to start logging your workout.",
+                "Want to check your recent workouts? Use /workouts or ask me 'how many times did I train chest this month?'"
+            ]
+        },
+        {
             "name": "Conversation Management",
             "description": "Manage conversation context window. Summarize history to free up space, clear history, or check context usage.",
             "commands": [

@@ -39,5 +39,9 @@
     "scan_interval_minutes": 60,
     "alert_sender_email": "unialerts@uobgroup.com",
     "currency": "VND"
+  },
+  "exercise": {
+    "enabled": true,
+    "data_file": "workouts.json"
   }
 }

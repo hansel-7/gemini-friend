@@ -22,7 +22,6 @@ TASK_PHRASES = [
     r'\bremember to\b',
     r'\bdon\'?t let me forget\b',
     r'\bdon\'?t forget to\b',
-
     r'\badd task\b',
     r'\bnew task\b',
     r'\btask:\s',

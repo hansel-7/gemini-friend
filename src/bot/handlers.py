@@ -29,6 +29,8 @@ _tasks_automation = None
 _cron_automation = None
 # Brain automation reference (set by main.py after loading automations)
 _brain_automation = None
+# Exercise automation reference (set by main.py after loading automations)
+_exercise_automation = None
 
 
 def set_tasks_automation(automation) -> None:
@@ -62,6 +64,17 @@ def set_brain_automation(automation) -> None:
     _brain_automation = automation
     if automation:
         logger.info("Brain agent event triggers enabled")
+
+
+def set_exercise_automation(automation) -> None:
+    """Set the exercise automation instance for session routing.
+    
+    Called by main.py after loading automations.
+    """
+    global _exercise_automation
+    _exercise_automation = automation
+    if automation:
+        logger.info("Exercise session routing enabled")
 
 
 @authorized_only
@@ -122,6 +135,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/expenses - Monthly summary\n"
         "/describe (id) (text) - Label a transaction\n"
         "/delexpense (id) - Delete an expense\n\n"
+        "*Exercise:*\n"
+        "/exercise - Start a workout session\n"
+        "/next - Next exercise (during workout)\n"
+        "/finish - End workout and save\n"
+        "/workouts - View recent workout history\n\n"
         "*Context:*\n"
         "/context - Check context window usage\n"
         "/summarize - Summarize conversation\n"
@@ -477,6 +495,12 @@ async def _process_text_message(user_message: str, update: Update, context: Cont
     user_info = get_user_info(update)
     
     logger.info(f"Processing message from {user_info['id']}: {user_message[:50]}...")
+    
+    # Check for active exercise session (bypass Gemini entirely)
+    if _exercise_automation and _exercise_automation.has_active_session(user_info['id']):
+        logger.info("Routing to exercise session handler")
+        await _exercise_automation.handle_session_input(update)
+        return
     
     # Check for natural language cron schedule requests (check before tasks)
     if _cron_automation and _cron_automation.is_schedule_message(user_message):

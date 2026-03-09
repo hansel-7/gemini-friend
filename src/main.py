@@ -33,7 +33,8 @@ from src.bot.handlers import (
     error_handler,
     set_tasks_automation,
     set_cron_automation,
-    set_brain_automation
+    set_brain_automation,
+    set_exercise_automation
 )
 from src.automations import load_automations, start_automations, stop_automations
 from src.utils.logger import logger
@@ -143,6 +144,8 @@ def main() -> None:
         elif automation.name == "brain":
             brain_automation = automation
             set_brain_automation(automation)
+        elif automation.name == "exercise":
+            set_exercise_automation(automation)
     
     # Give the brain agent access to the task list
     if brain_automation and tasks_manager:
